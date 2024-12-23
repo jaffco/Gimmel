@@ -1,4 +1,26 @@
 #include "wav.h"
+
+#include "JaffMalloc.hpp"
+
+//Overwrite stdlib calls in giml space
+Jaffx::MyMalloc m;
+namespace giml {
+    void* malloc(size_t size) {
+        return m.malloc(size);
+    }
+
+    void* calloc(size_t nelemb, size_t size) {
+        return m.calloc(nelemb, size);
+    }
+
+    void* realloc(void* ptr, size_t size) {
+        return m.realloc(ptr, size);
+    }
+
+    void free(void* ptr) {
+        m.free(ptr);
+    }
+}
 #include "../include/reverb.hpp"
 
 #include <chrono>
@@ -51,7 +73,7 @@ int main() {
     for (const float& f : b) {
         std::cout << b.popBack() << std::endl;
     }*/
-
+    m.MyMallocInit();
     WAVLoader loader { "audio/homemadeLick.wav" }; //Pick an input sound to test
     WAVWriter writer { "audio/out.wav", loader.sampleRate };
 
