@@ -91,8 +91,9 @@ int main() {
         output = r->processSample(input);
         
         writer.writeSample(output); //Write modified sample to output file
-        if (i % 100 == 0) {
-            std::cout << "Wrote 100 samples" << std::endl;
+        a.push_back(output);
+        if (i % 10000 == 0) {
+            std::cout << "Wrote 10000 samples" << std::endl;
         }
         i++;
     }
