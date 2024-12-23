@@ -76,17 +76,20 @@ int main() {
     m.MyMallocInit();
     WAVLoader loader { "audio/homemadeLick.wav" }; //Pick an input sound to test
     WAVWriter writer { "audio/out.wav", loader.sampleRate };
-
-    giml::Reverb<float> r{ loader.sampleRate };
-    r.setParams(0.020f, 0.6f, 0.75f, 10.f, 0.75f, giml::Reverb<float>::RoomType::CUBE);
-    r.enable();
+    std::unique_ptr<giml::Reverb<float>> r;
+    r = std::make_unique<giml::Reverb<float>>(loader.sampleRate);
+    //giml::Reverb<float> r{ loader.sampleRate };
+    r->setParams(0.020f, 0.6f, 0.75f, 100.f, 0.75f, giml::Reverb<float>::RoomType::SPHERE);
+    r->enable();
 
 
     float input, output;
     int i = 1;
     while (loader.readSample(&input)) { //Sample loop
         //Effects go here
-        output = r.processSample(input);
+        output = 
+        output = r->processSample(input);
+        
         writer.writeSample(output); //Write modified sample to output file
         if (i % 100 == 0) {
             std::cout << "Wrote 100 samples" << std::endl;
