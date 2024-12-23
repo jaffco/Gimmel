@@ -4,6 +4,9 @@
 #include "utility.hpp"
 #include "biquad.hpp"
 namespace giml {
+    /**
+     * @brief Waveshaping distortion (BROKEN)
+     */
     template <typename T>
     class Saturation : public Effect<T> {
     private:

@@ -27,9 +27,7 @@ namespace giml {
      * @return input value in dB
      */
     float aTodB(float ampVal) {
-        if (ampVal == 0) {
-            ampVal += 1e-6;
-        }
+        if (ampVal == 0) { ampVal += 1e-6; } // prevents nans for input of 0
         return 20.f * ::log10f(::fabs(ampVal));
     }
 
@@ -63,7 +61,7 @@ namespace giml {
      * @return `in1 * (1-mix) + in2 * mix`
      */
     template <typename T>
-    T linMix(T in1, T in2, T mix = 0) {
+    T linMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
         return in1 * (1-mix) + in2 * mix;
     }
@@ -82,7 +80,7 @@ namespace giml {
     }
 
     /**
-     * @brief clips an input number to keep it within specified bounds
+     * @brief clips an input number to keep it within specified bounds (inclusive)
      * @param in input number
      * @param min minimum bound
      * @param max maximum bound
@@ -90,9 +88,7 @@ namespace giml {
      */
     template <typename T>
     T clip(T in, T min, T max) {
-        if (in < min) {return min;}
-        else if (in > max) {return max;}
-        else {return in;}
+        return (in < min) ? min : (in > max ? max : in);
     }
 
     /**
@@ -122,8 +118,8 @@ namespace giml {
     }
 
     /**
-     * @brief calculates the number of samples a given decay multiplier 
-     * will need to decay by -60dB.
+     * @brief calculates the number of samples 
+     * a given decay multiplier will need to decay by -60dB.
      *
      * See Generating Sound & Organizing Time I - Wakefield and Taylor 2022
      * Chapter 6 pg. 168
@@ -159,28 +155,26 @@ namespace giml {
     }
 
     /**
-     * @brief Effect class that implements a bypass switch (enabled by default)
+     * @brief Effect class that implements a toggle switch (disabled by default)
      */
     template <typename T>
     class Effect {
     public:
         Effect() {}
         virtual ~Effect() {}
-        virtual void enable() {
-            this->enabled = true;
-        }
 
-        virtual void disable() {
-            this->enabled = false;
-        }
+        // `enable()`/`disable()` soon to be deprecated
+        virtual void enable() { this->enabled = true; } 
+        // `enable()`/`disable()` soon to be deprecated
+        virtual void disable() { this->enabled = false; }
         
-        virtual void toggle() {
-            this->enabled = !(this->enabled);
-        }
+        /**
+         * @brief `toggle()` function with overloads. 
+         */
+        virtual void toggle() { this->enabled = !(this->enabled); }
+        virtual void toggle(bool desiredState) { this->enabled = desiredState; }
 
-        virtual inline T processSample(const T& in) {
-            return in;
-        }
+        virtual inline T processSample(const T& in) { return in; }
 
     protected:
         bool enabled = false;
@@ -201,18 +195,18 @@ namespace giml {
         }
 
         void tick() {
-            if (done) {return;}
+            if (done) { return; }
             n++;
-            if (n == N) {this->done = true;}
+            if (n >= N) { this->done = true; }
         }
 
-        bool isDone() {return done;}
+        bool isDone() { return done; }
 
-        int timeS() {return n;}
+        int timeS() { return n; }
 
         T timeU() {
-            if (N == 0) {return static_cast<T>(0);} // Avoid division by zero
-            if (done) {return 1;}
+            if (N == 0) { return static_cast<T>(0); } // Avoid division by zero
+            if (done) { return 1; }
             return static_cast<T>(n) / static_cast<T>(N);
         }
     };
@@ -220,7 +214,7 @@ namespace giml {
     /**
      * @brief Circular buffer implementation. 
      * Handy for effects that require a delay line.
-     * TODO: Add allpass interpolation -JAJ
+     * TODO: Add allpass interpolation
      * See Generating Sound & Organizing Time I - Wakefield and Taylor 2022 Chapter 7 pg. 223
      */
     template <typename T>
@@ -236,9 +230,7 @@ namespace giml {
          * @param size in a delay line, the number of past samples stored
          */
         void allocate(size_t size) {
-            if (this->pBackingArr) {
-                free(this->pBackingArr);
-            }
+            if (this->pBackingArr) { free(this->pBackingArr); } // free if occupied
             this->bufferSize = size;
             this->pBackingArr = (T*)calloc(this->bufferSize, sizeof(T)); // zero-fill values
         }
@@ -260,9 +252,7 @@ namespace giml {
         // Copy assignment constructor
         CircularBuffer& operator=(const CircularBuffer& c) {
             //There is a previous object here so first we need to free the previous buffer
-            if (this->pBackingArr) {
-                free(this->pBackingArr);
-            }
+            if (this->pBackingArr) { free(this->pBackingArr); }
             this->bufferSize = c.bufferSize;
             this->pBackingArr = (T*)calloc(bufferSize, sizeof(T));
             for (size_t i = 0; i < this->bufferSize; i++) {
@@ -272,11 +262,8 @@ namespace giml {
             return *this;
         }
 
-        ~CircularBuffer() {
-            if (this->pBackingArr) {
-                free(pBackingArr);
-            }
-        }
+        // Destructor that frees the memory
+        ~CircularBuffer() { if (this->pBackingArr) { free(pBackingArr); } }
 
         /**
          * @brief Writes a new sample to the buffer
@@ -296,14 +283,11 @@ namespace giml {
          * @return `buffer[writeIndex - delayInSamples]`
          */
         inline T readSample(size_t delayInSamples) const {
-            if (delayInSamples >= this->bufferSize) { // limit delay to maxIndex
-                delayInSamples = this->bufferSize - 1;
-            }
+            // limit delay to maxIndex
+            if (delayInSamples >= this->bufferSize) { delayInSamples = this->bufferSize - 1; }
             long int readIndex = this->writeIndex - delayInSamples; // calculate readIndex
-            if (readIndex < 0) {
-                readIndex += this->bufferSize; // circular logic
-            }
-            return this->pBackingArr[readIndex];
+            if (readIndex < 0) { readIndex += this->bufferSize; } // circular logic 
+          return this->pBackingArr[readIndex];
         }
 
         inline T readSample(int delayInSamples) const {
@@ -325,13 +309,17 @@ namespace giml {
                 + (this->readSample(readIndex2) * frac); 
         }
 
+        /**
+         * @brief overload for doubles
+         */
         inline T readSample(double delayInSamples) const {
             return this->readSample((float)delayInSamples);
         }
-
-        size_t size() const {
-            return this->bufferSize;
-        }
+        
+        /**
+         * @brief getter for `bufferSize`
+         */
+        size_t size() const { return this->bufferSize; }
     };
 
     /**
@@ -394,13 +382,8 @@ namespace giml {
             free(this->pBackingArr);
         }
 
-        size_t size() const {
-            return this->length;
-        }
-
-        size_t getCapacity() const {
-            return this->totalCapacity;
-        }
+        size_t size() const { return this->length; }
+        size_t getCapacity() const { return this->totalCapacity; }
 
         void pushBack(const T& val) {
             if (this->length == this->totalCapacity) {
@@ -425,18 +408,15 @@ namespace giml {
             }
         }
 
-        T popBack() { //Removes & returns the last element in the dynamic array
+        T popBack() { // Removes & returns the last element in the dynamic array
             if (this->length > 0) {
                 T returnVal = (*this)[this->length - 1];
                 this->removeAt(this->length - 1);
-                return returnVal;
-            }
-            else {
-                printf("Array is already empty!/n");
-            }
+              return returnVal;
+            } else { printf("Array is already empty!/n"); }
         }
 
-        //Array access operators
+        // Array access operators
         T& operator[](size_t index) {
             if (index >= this->length || index < 0) {
                 printf("Array access out of bounds/n");
@@ -452,22 +432,11 @@ namespace giml {
             return this->pBackingArr[index];
         }
 
-        //Iterator operators to support range-based for loop syntax
-        T* begin() {
-            return this->pBackingArr;
-        }
-
-        const T* begin() const {
-            return this->pBackingArr;
-        }
-
-        T* end() {
-            return this->pBackingArr + this->length;
-        }
-
-        const T* end() const {
-            return this->pBackingArr + this->length;
-        }
+        // Iterator operators to support range-based for loop syntax
+        T* begin() { return this->pBackingArr; }
+        const T* begin() const { return this->pBackingArr; }
+        T* end() { return this->pBackingArr + this->length; }
+        const T* end() const { return this->pBackingArr + this->length; }
     };
 
     /**
@@ -507,7 +476,7 @@ namespace giml {
             for (const Effect<T>& e : this) {
                 returnVal = e.processSample(returnVal);
             }
-            return returnVal;
+          return returnVal;
         }
     };
 
@@ -569,37 +538,19 @@ namespace giml {
             }
         }
         // Copy assignment operator
-        LinkedList<T>& operator=(const giml::LinkedList<T>& l) {
-
-        }
-        //Destructor
+        LinkedList<T>& operator=(const giml::LinkedList<T>& l) {}
+        // Destructor
         ~LinkedList() {
             // Clean up entire LinkedList
             freeUpRestOfList(this->head);
             //free(this->head);
         }
 
-
-        size_t size() {
-            return this->length;
-        }
+        /**
+         * @brief getter for size
+         */
+        size_t size() { return this->length; }
     };
-    // template <typename T>
-    // struct isFloatingPoint {
-    //     static const bool val = false;
-    // };
 
-    // template <>
-    // struct isFloatingPoint<float> {
-    //     static const bool val = true;
-    // };
-    // template <>
-    // struct isFloatingPoint<double> {
-    //     static const bool val = true;
-    // };
-    // template <>
-    // struct isFloatingPoint<long double> {
-    //     static const bool val = true;
-    // };
-}
+} // namespace giml
 #endif

@@ -6,7 +6,7 @@
 #include "biquad.hpp"
 namespace giml {
     /**
-     * @brief This class implements a basic phaser effect
+     * @brief This class implements a basic phaser effect (INCOMPLETE)
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
      */

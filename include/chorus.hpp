@@ -6,22 +6,35 @@
 namespace giml {
     /**
      * @brief This class implements a basic chorus effect
+     * 
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
+     * 
+     * @todo multi-layer chorus
      */
     template <typename T>
     class Chorus : public Effect<T> {
     private:
         int sampleRate;
-        float rate = 1.f, depth = 20.f, blend = 0.5f;
+        T rate = 0.20, depth = 0.0, offset = 0.0, blend = 0.5;
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
 
     public:
         Chorus() = delete;
-        Chorus (int samprate, float maxDepthMillis = 150.f) : sampleRate(samprate), osc(samprate) {
+
+        /**
+         * @brief constructor that sets max delay to 50ms, 
+         * the border of the `transition band` where delays begin 
+         * to be perceived as discrete echoes.
+         * 
+         * See Microsound - Curtis Roads 2004 Figure 1.1
+         */
+        Chorus (int samprate, float maxDepthMillis = 50.f) : sampleRate(samprate), osc(samprate) {
             this->osc.setFrequency(this->rate);
-            this->buffer.allocate(giml::millisToSamples(maxDepthMillis * 2.f, samprate)); // max delay is 100,000 samples
+            this->depth = giml::millisToSamples(15.0, samprate);
+            this->offset = giml::millisToSamples(20.0, samprate); 
+            this->buffer.allocate(giml::millisToSamples(maxDepthMillis, samprate)); // max delay is 50ms 
         }
 
         /**
@@ -32,35 +45,45 @@ namespace giml {
          * from current sample create pitch-shifting via the doppler effect 
          */
         T processSample(T in) {
-            this->buffer.writeSample(in); // write sample to delay buffer
+            // bypass behavior
+            this->buffer.writeSample(in);
+            if (!this->enabled) { return in; }
 
-            if (!(this->enabled)) {
-                return in;
-            }
+            // y_n = x_{n - (offset + osc_n * depth)}
+            float readIndex = this->offset + this->osc.processSample() * this->depth;
+            T wet = this->buffer.readSample(readIndex);
+            return giml::powMix<float>(in, wet, this->blend); // return mix
+        }
 
-            float idealReadIndex = millisToSamples(this->depth, this->sampleRate) + 
-            (millisToSamples(this->depth, this->sampleRate) * 0.5) * this->osc.processSample();
-
-            T wet = this->buffer.readSample(idealReadIndex);
-            return wet * blend + in * (1-blend); // return mix
+        /**
+         * @brief sets params rate, depth and blend
+         * @todo more params
+         */
+        void setParams(T rate = 0.20, T depth = 20.0, T blend = 0.5) {
+            this->setRate(rate);
+            this->setDepth(depth);
+            this->setBlend(blend);
         }
 
         /**
          * @brief Set modulation rate- the frequency of the LFO.  
          * @param freq frequency in Hz 
          */
-        void setRate(float freq) {
-            this->osc.setFrequency(freq); // set frequency in Hz
-        }
+        void setRate(T freq) { this->osc.setFrequency(freq); }
 
         /**
-         * @brief Set modulation depth- the average delay time
+         * @brief Set modulation depth- the delay length of 
+         * excursions from an average delay (offset + depth)
          * @param d depth in milliseconds
+         * @todo test for stability
          */
-        void setDepth(float d) {
-            if (giml::millisToSamples(d * 2.f, this->sampleRate) > this->buffer.size()) {
-                d = giml::samplesToMillis(this->buffer.size(), this->sampleRate) / 2.f;
+        void setDepth(T d) {
+            d = giml::millisToSamples(d, this->sampleRate);
+            this->offset = d + giml::millisToSamples(5.0, this->sampleRate);
+            if (d + this->offset > this->buffer.size()) {
+                d = giml::samplesToMillis(this->buffer.size(), this->sampleRate) - this->offset;
             }
+            this->offset = d + giml::millisToSamples(5.0, this->sampleRate);
             this->depth = d;
         }
 
@@ -68,13 +91,8 @@ namespace giml {
          * @brief Set blend 
          * @param b ratio of wet to dry (clamped to [0,1])
          */
-        void setBlend(float b) {
-            // clamp b to [0, 1]
-            if (b > 1) {b = 1.f;} 
-            else if (b < 0) {b = 0.f;}
-            // set blend
-            this->blend = b;
-        }
+        void setBlend(T b) { this->blend = giml::clip<T>(b, 0.f, 1.f); }
+
     };
 }
 #endif

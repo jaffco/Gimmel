@@ -12,9 +12,9 @@ namespace giml {
     class Compressor : public Effect<T> {
     private:
         int sampleRate;
-        float thresh_dB = 0.f, ratio = 2.f, knee_dB = 1.f;
-        float aRelease = 0.f, aAttack = 0.f;
-        float makeupGain_dB = 0.f;
+        T thresh_dB = 0.f, ratio = 2.f, knee_dB = 1.f, 
+        aRelease = 0.f, aAttack = 0.f, makeupGain_dB = 0.f;
+
         class DetectdB { // encapsulated detector class
         private:
             T y1last = 0;
@@ -79,9 +79,7 @@ namespace giml {
          * @return `in` with gain reduction and makeup gain applied
          */
         inline T processSample(const T& in) override {
-            if (!(this->enabled)) {
-                return in;
-            }
+            if (!(this->enabled)) { return in; }
 
             T xG = giml::aTodB(in); // xG
             T yG = computeGain(xG, this->thresh_dB, this->ratio, this->knee_dB); // yG
@@ -92,71 +90,86 @@ namespace giml {
             T gain = giml::dBtoA(cdB); // lin()
             return (in * gain); // apply gain
         }
-        /**
-         * @brief set attack time 
-         * @param attackMillis attack time in milliseconds 
-         */
-        void setAttack(float attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
-            if (attackMillis <= 0.f) {
-                attackMillis = 0.000000000000000001f;
-                printf("Attack time set to pseudo-zero value, supply a positive float/n");
-            }
-            float t = attackMillis * 0.001f;
-            this->aAttack = ::powf( M_E , -1.f / (t * this->sampleRate) );
-        }
 
         /**
-         * @brief set release time 
-         * @param releaseMillis release time in milliseconds 
+         * @brief sets params threshold, ratio, knee, 
+         * attack, release, and makeup gain
          */
-        void setRelease(float releaseMillis) { // // 
-            if (releaseMillis <= 0.f) {
-                releaseMillis = 0.000000000000000001f;
-                printf("Release time set to pseudo-zero value, supply a positive float/n");
-            }
-            float t = releaseMillis * 0.001f;
-            this->aRelease = ::powf( M_E , -1.f / (t * this->sampleRate) );
-        }
-
-        /**
-         * @brief set compression ratio
-         * @param r ratio
-         */
-        void setRatio(float r) {
-            if (r <= 1.f) { 
-                r = 1.f + 0.00001f;
-                printf("Ratio must be greater than 1/n"); // necessary? 
-            }
-            this->ratio = r;
+        void setParams(T thresh = 0.0, T ratio = 2.0, T makeup = 0.0,
+                       T knee = 1.0, T attack = 3.5, T release = 100.0) {
+            this->setThresh(thresh);
+            this->setRatio(ratio);
+            this->setMakeupGain(makeup);
+            this->setKnee(knee);
+            this->setAttack(attack);
+            this->setRelease(release);
         }
 
         /**
          * @brief set threshold to trigger compression
          * @param threshdB threshold in dB
          */
-        void setThresh(float threshdB) {
+        void setThresh(T threshdB) {
             this->thresh_dB = threshdB;
         }
-        
+
         /**
-         * @brief set knee width
-         * @param widthdB width value in dB
+         * @brief set compression ratio
+         * @param r ratio
          */
-        void setKnee(float widthdB) {
-            if (widthdB <= 0.f) {
-                widthdB = 0.00001f;
-                printf("Knee set to pseudo-zero value, supply a positive float/n");
+        void setRatio(T r) {
+            if (r <= 1.0) { 
+                r = 1.0 + 1e-6;
+                printf("Ratio must be greater than 1/n"); // necessary? 
             }
-            this->knee_dB = widthdB;
+            this->ratio = r;
         }
 
         /**
          * @brief set makeup gain
          * @param mdB gain value in dB. Clamped to positive value. 
          */
-        void setMakeupGain(float mdB) {
-            if (mdB < 0.f) {mdB = 0.f;}
+        void setMakeupGain(T mdB) {
+            if (mdB < 0.f) { mdB = 0.f; }
             this->makeupGain_dB = mdB;
+        }
+        
+        /**
+         * @brief set knee width
+         * @param widthdB width value in dB
+         */
+        void setKnee(T widthdB) {
+            if (widthdB <= 0.0) {
+                widthdB = 1e-6;
+                printf("Knee set to pseudo-zero value, supply a positive float/n");
+            }
+            this->knee_dB = widthdB;
+        }
+
+        /**
+         * @brief set attack time 
+         * @param attackMillis attack time in milliseconds 
+         */
+        void setAttack(T attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
+            if (attackMillis <= 0.0) {
+                attackMillis = 1e-6;
+                printf("Attack time set to pseudo-zero value, supply a positive float/n");
+            }
+            T timeS = attackMillis * 0.001; // convert to seconds
+            this->aAttack = ::powf( M_E , -1.0 / (timeS * this->sampleRate) );
+        }
+
+        /**
+         * @brief set release time 
+         * @param releaseMillis release time in milliseconds 
+         */
+        void setRelease(T releaseMillis) { // // 
+            if (releaseMillis <= 0.0) {
+                releaseMillis = 1e-6;
+                printf("Release time set to pseudo-zero value, supply a positive float/n");
+            }
+            float timeS = releaseMillis * 0.001; // convert to seconds
+            this->aRelease = ::powf( M_E , -1.0 / (timeS * this->sampleRate) );
         }
     };
 }

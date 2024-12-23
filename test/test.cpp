@@ -24,6 +24,9 @@ namespace giml {
 #include "../include/reverb.hpp"
 
 #include <chrono>
+#include <vector>
+
+
 static long long timeElapsed = 0L;
 static long long iterations = 0L;
 
@@ -85,9 +88,9 @@ int main() {
 
     float input, output;
     int i = 1;
+    std::vector<float> a;
     while (loader.readSample(&input)) { //Sample loop
         //Effects go here
-        output = 
         output = r->processSample(input);
         
         writer.writeSample(output); //Write modified sample to output file
