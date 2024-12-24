@@ -22,6 +22,8 @@ namespace giml {
     }
 }
 #include "../include/reverb.hpp"
+#include "../include/oscillator.hpp"
+
 
 #include <chrono>
 #include <vector>
@@ -77,22 +79,24 @@ int main() {
         std::cout << b.popBack() << std::endl;
     }*/
     m.MyMallocInit();
-    WAVLoader loader { "audio/homemadeLick.wav" }; //Pick an input sound to test
+    WAVLoader loader { "audio/vocals.wav" }; //Pick an input sound to test
     WAVWriter writer { "audio/out.wav", loader.sampleRate };
     std::unique_ptr<giml::Reverb<float>> r;
-    r = std::make_unique<giml::Reverb<float>>(loader.sampleRate);
+    r = std::make_unique<giml::Reverb<float>>(loader.sampleRate, 4, 20, 4, 2);
     //giml::Reverb<float> r{ loader.sampleRate };
-    r->setParams(0.020f, 0.6f, 0.75f, 100.f, 0.75f, giml::Reverb<float>::RoomType::SPHERE);
+    r->setParams(0.030f, 0.6f, 0.75f, 1000.f, 0.5f, giml::Reverb<float>::RoomType::CUBE);
     r->enable();
 
+ //   giml::TriOsc<float> sinOsc{ 48000 };
+	//sinOsc.setFrequency(220.f);
 
     float input, output;
     int i = 1;
     std::vector<float> a;
     while (loader.readSample(&input)) { //Sample loop
         //Effects go here
-        output = r->processSample(input);
-        
+        output = giml::powMix<float>(r->processSample(input), input, 0.25);
+		//output = sinOsc.processSample();
         writer.writeSample(output); //Write modified sample to output file
         a.push_back(output);
         if (i % 10000 == 0) {

@@ -89,6 +89,7 @@ namespace giml {
 
         }
 
+        // Copy assignment constructor
         Reverb<T>& operator=(const Reverb<T>& r) {
             this->sampleRate = r.sampleRate;
             
@@ -436,7 +437,7 @@ namespace giml {
         class NestedAPF { //not the same as 2nd order APF present in Biquad since this is Nth-order
         private:
             CircularBuffer<U> delayLine;
-            TriOsc<U> LFO; //TODO: We can try another oscillator?
+            SinOsc<U> LFO; //TODO: We can try another oscillator?
             NestedAPF<U>* nestedAPF; //Pointer to another nestedAPF inside this one's feedback loop
         
         public:
@@ -447,7 +448,7 @@ namespace giml {
             // Allow NestedAPF to take in a pointer to NestedAPF for placement in the feedback loop of this current APF
             NestedAPF(int sampleRate, NestedAPF<U>* nestedAPF = nullptr) : LFO(sampleRate), nestedAPF(nestedAPF) {
                 this->delayLine.allocate(5 * sampleRate);
-                // TODO: this->LFO.setFrequency();
+                //this->LFO.setFrequency(0.1);
             }
             // Copy Constructor
             NestedAPF(const NestedAPF<U>& a) {
@@ -525,7 +526,7 @@ namespace giml {
                 // modulated by oscillator converted to unipolar through *0.5 + 0.5
                 U delayedVal = this->delayLine.readSample(this->delaySamples + 
                                 (this->LFO.processSample() + 1) / 2 * this->lfoDepth);
-
+                //U delayedVal = this->delayLine.readSample(this->delaySamples);
                 //Now go through LPF
                 delayedVal = delayedVal * (1 - this->LPFFeedbackGain) + 
                                             this->LPFFeedbackGain * this->LPFLast;
@@ -535,16 +536,14 @@ namespace giml {
 
                 if (this->nestedAPF) {
                     // Then let's take our value through it
-                    U innerVal = this->nestedAPF->processSample(w);
-                    this->delayLine.writeSample(innerVal);
-                } else { 
-                    this->delayLine.writeSample(w); 
-                }
+                    w = this->nestedAPF->processSample(w);
+                }    
+                this->delayLine.writeSample(w); 
 
                 return -this->APFFeedbackGain * w + delayedVal;
             }
         private:
-            static const int lfoDepth = 10; // numSamples to go over/under by from original delay of delay line
+            static const int lfoDepth = 2; // numSamples to go over/under by from original delay of delay line
             float delaySamples = 0.f; // delay in ms converted to how many samples in the past
             T LPFLast = 0;
             float LPFFeedbackGain = 0.f, APFFeedbackGain = 0.f;
@@ -562,7 +561,7 @@ namespace giml {
             float delayIndex;
             bool neg; // Boolean for phase inversion
             Biquad<U> LPF; // TODO: replace with onePole, add DC block
-            U last = 0.f;
+            U LPFLast = 0.f;
             
 
         public:
@@ -627,12 +626,24 @@ namespace giml {
 
                 float yn = this->delayLineY.readSample(delayIndex);
                 if (this->neg) { yn = -yn; }
-                //float FB = CombFeedbackGain * LPF.processSample(yn);
-                float filtered = yn + (last * this->LPFFeedbackGain);
-                last = filtered;
-                float FB = filtered * this->CombFeedbackGain;
-                this->delayLineY.writeSample(in + FB);
+
+                float filtered = yn * (1 - this->LPFFeedbackGain) +
+                    this->LPFFeedbackGain * this->LPFLast;
+                this->LPFLast = yn; //set next prev to current
+
+
+
+                this->delayLineY.writeSample(in + filtered * this->CombFeedbackGain);
                 return yn;
+
+                //float yn = this->delayLineY.readSample(delayIndex);
+                //if (this->neg) { yn = -yn; }
+                ////float FB = CombFeedbackGain * LPF.processSample(yn);
+                //float filtered = yn + (last * this->LPFFeedbackGain);
+                ////last = filtered;
+                //last = filtered * this->CombFeedbackGain;
+                //this->delayLineY.writeSample(in + last);
+                //return yn;
 
                 // x[n-D] - g2 x[n-D-1] + g2 y[n-1] + g1 y[n-D]  (g2 = LPF gain)
                 // x[n-D] + g2 (y[n-1] - x[n-(D+1)]) + g1 y[n-D]
