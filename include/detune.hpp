@@ -17,14 +17,14 @@ namespace giml {
     class Detune : public Effect<T> {
     private:
         int sampleRate;
-        T pitchRatio = 1.0, windowSize = 22.0; 
+        T pitchRatio = 1.0, windowSize = 22.0, blend = 0.5; 
         giml::CircularBuffer<T> buffer;
         giml::Phasor<T> osc;
 
     public:
         Detune() = delete;
-        Detune(int samprate, float maxWindowMillis = 300.f) : sampleRate(samprate), osc(samprate) {
-            this->osc.setFrequency(1000.f * ((1.f - this->pitchRatio) / this->windowSize));
+        Detune(int samprate, float maxWindowMillis = 300.0) : sampleRate(samprate), osc(samprate) {
+            this->osc.setFrequency(1000.0 * ((1.0 - this->pitchRatio) / this->windowSize));
             this->buffer.allocate(giml::millisToSamples(maxWindowMillis, samprate));
         }
 
@@ -37,12 +37,12 @@ namespace giml {
         T processSample(T in) {
             // bypass behavior 
             this->buffer.writeSample(in); // write sample to delay buffer
-            if (!(this->enabled)) { return in; }
+            if (!this->enabled) { return in; }
 
             T phase = this->osc.processSample();
             // calling `millisToSamps` every sample is not performant
             float readIndex = phase * millisToSamples(this->windowSize, this->sampleRate); // readpoint 1
-            float readIndex2 = ::fmod(phase + 0.5f, 1) * millisToSamples(this->windowSize, this->sampleRate); // readpoint 2
+            float readIndex2 = ::fmod(phase + 0.5, 1) * millisToSamples(this->windowSize, this->sampleRate); // readpoint 2
 
             T output = this->buffer.readSample(readIndex); // get sample
             T output2 = this->buffer.readSample(readIndex2); // get sample 2
@@ -50,15 +50,17 @@ namespace giml {
             T windowOne = ::cosf((phase - 0.5) * M_PI); // gain windowing
             T windowTwo = ::cosf((::fmod(phase + 0.5, 1.0) - 0.5) * M_PI);// ^
             
-            return output * windowOne + output2 * windowTwo; // windowed output
+            T out = output * windowOne + output2 * windowTwo; // windowed output
+            return giml::powMix(in, out, this->blend);
         }
 
         /**
          * @brief sets params pitchRatio and windowSize
          */
-        void setParams(T pitchRatio = 1.0, T windowSize = 22.0) {
+        void setParams(T pitchRatio = 1.0, T windowSize = 22.0, T blend = 0.5) {
             this->setPitchRatio(pitchRatio);
             this->setWindowSize(windowSize);
+            this->setBlend(blend);
         }
 
         /**
@@ -81,6 +83,12 @@ namespace giml {
             }
             this->windowSize = sizeMillis;
         }
+
+        /**
+         * @brief Set blend 
+         * @param b ratio of wet to dry (clamped to [0,1])
+         */
+        void setBlend(T b) { this->blend = giml::clip<T>(b, 0.0, 1.0); }
     };
 }
 #endif
