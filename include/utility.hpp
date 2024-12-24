@@ -441,23 +441,46 @@ namespace giml {
 
     /**
      * @brief This will be the Effects Line class to set up many Effects in series and pass values
-     * through an entire signal chain. Acts as std::vector<> to some certain extent. Basic usage:
+     * through an entire signal chain. Acts as std::vector<> to some certain extent.
+     * It works on pointers to `Effect`s so all you need to do is `pushBack(Effect*)`
      * 
-     * giml::Biquad<float> b;
-     * giml::Reverb<float> r;
-     * EffectsLine<float> signalChain;
-     * signalChain.push_back(b);
-     * signalChain.push_back(r);
+     * 
+     * 
+     * Suggested usage (unique pointer not necessary):
+     * 
+     * ```cpp
+     * 
+     * // Set up your effects classes:
+     * 
+     * std::unique_ptr<giml::Biquad<float>> mBiquad;
+     * std::unique_ptr<giml::Reverb<float>> mReverb;
+     * EffectsLine<float> signalChain; //Supply the same data type you use
+     * 
+     * mBiquad = std::make_unique<giml::Biquad<float>>(sampleRate);
+     * mReverb = std::make_unique<giml::Reverb<float>>(sampleRate);
+     * 
+     * // Instantiate params:
+     * 
+     * mBiquad->setType(giml::Biquad<float>::BiquadUseCase::LPF_1st);
+     * mReverb->setParams(time, regen, damping, space, absorptionCoefficient, type);
+     * 
+     * 
+     * // Add them manually in whatever order you would like them applied:
+     * 
+     * signalChain.pushBack(mBiquad.get());
+     * signalChain.pushBack(mReverb.get());
+     * 
+     * 
      * signalChain.processSample(0.5f);
-     * 
-     * Can later change b & r directly, changes should take effect in EffectsLine
+     * ```
+     * Can later change mBiquad & mReverb directly, changes should take effect in EffectsLine
      * 
      * @tparam T 
      */
     template <typename T>
-    class EffectsLine : private DynamicArray<Effect<T>> {
+    class EffectsLine : public DynamicArray<Effect<T>*> {
     public:
-        EffectsLine(size_t initialCapacity = 5): DynamicArray<Effect<T>>(initialCapacity) {}
+        EffectsLine(size_t initialCapacity = 5): DynamicArray<Effect<T>*>(initialCapacity) {}
         //Copy constructor
         EffectsLine(const EffectsLine& e) {}
         //Copy assignment operator
@@ -473,8 +496,8 @@ namespace giml {
          */
         T processSample(T in) {
             T returnVal = in;
-            for (const Effect<T>& e : this) {
-                returnVal = e.processSample(returnVal);
+            for (Effect<T>* e : *this) {
+                returnVal = e->processSample(returnVal);
             }
           return returnVal;
         }

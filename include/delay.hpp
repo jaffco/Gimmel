@@ -31,7 +31,7 @@ namespace giml {
          * @param in input sample
          * @return `in * 1-blend + y_D * blend`
          */
-        T processSample(T in) {
+        inline T processSample(const T& in) {
             // calling `millisToSamples` every sample is not performant 
             T readIndex = millisToSamples(this->delayTime, this->sampleRate); // calculate read index
             T y_0 = loPass.lpf(this->buffer.readSample(readIndex)); // read from buffer and loPass

@@ -42,7 +42,7 @@ namespace giml {
             return *this;
         }
         
-        inline T processSample(T in) {
+        inline T processSample(const T& in) override {
             if (!(this->enabled)) {
                 return in;
             }
@@ -78,9 +78,9 @@ namespace giml {
             // }
             */
             
-            in *= this->preAmpGain;
+            //in *= this->preAmpGain;
             
-            T returnVal;
+            T returnVal = in * this->preAmpGain;
             if (this->oversamplingFactor > 1) {
                 //TODO: Then we need to oversample, apply process
 
@@ -99,7 +99,7 @@ namespace giml {
                 
 
                 for (int i = 0; i < this->oversamplingFactor; i++) {
-                    arrValues[i] = in + i * delta; //Linear interpolation for each sample (1st is previous real sample and last is current input)
+                    arrValues[i] = in * this->preAmpGain + i * delta; //Linear interpolation for each sample (1st is previous real sample and last is current input)
                     //TODO: Apply correct distortion function here for each sample
                     //arrValues[i] = ::tanhf(this->drive * arrValues[i]) / ::tanhf(this->drive);
 
