@@ -21,6 +21,7 @@ namespace giml {
         float param__regen = 0.f; //controls LPF feedback gains for Comb Filter
         float param__damping = 0.f; //controls feedback loop gains for APF
         float param__length = 1.f; // controls volume of room and decay time of signal
+        float param__blend = 0.5f;
 
         int sampleRate;
 
@@ -158,18 +159,20 @@ namespace giml {
          * 
          * @see giml::Reverb::setRoom()
          */
-        void setParams(float time, float regen, float damping, float roomLength = 1.f, float absorptionCoefficient = 0.75f, RoomType roomType = RoomType::SPHERE) {
+        void setParams(float time, float regen, float damping, float blend = 0.5f, float roomLength = 1.f, float absorptionCoefficient = 0.75f, RoomType roomType = RoomType::SPHERE) {
             this->setTime(time);
             this->setRegen(regen);
             this->setRoom(roomLength, absorptionCoefficient, roomType);
             this->setDamping(damping);
+            this->setBlend(blend);
         }
 
-        void setParams(float time, float regen, float damping, CustomRoom* customRoom = nullptr) {
+        void setParams(float time, float regen, float damping, float blend = 0.5f, CustomRoom* customRoom = nullptr) {
             this->setTime(time);
             this->setRegen(regen);
             this->setRoom(customRoom);
             this->setDamping(damping);
+            this->setBlend(blend);
         }
         /**
          * @brief Function to process one sound sample through the `Reverb` effect at a time
@@ -200,8 +203,8 @@ namespace giml {
                     //prev = apf->processSample(prev);
                 }
             }
-            return summedValue;
-            //return prev;
+
+            return giml::powMix(in, summedValue, this->param__blend);
         }
 
     private:
@@ -297,6 +300,12 @@ namespace giml {
             for (auto& apf : this->beforeAPFs) { apf->setLPFFeedbackGain(g); }
             for (auto& apf : this->afterAPFs) { apf->setLPFFeedbackGain(g); }
         }
+
+        /**
+         * @brief Set blend 
+         * @param b ratio of wet to dry (clamped to [0,1])
+         */
+        void setBlend(T b) { this->param__blend = giml::clip<T>(b, 0.0, 1.0); }
 
         /**
          * @brief Takes a feedback gain coefficient and sets the parameter for all the comb filters
