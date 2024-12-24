@@ -159,7 +159,7 @@ namespace giml {
             }
         }
 
-        T processSample(T in) {
+        inline T processSample(const T& in) {
             T returnVal = {0};
             switch (useCase) {
             case BiquadUseCase::PassThroughDefault:

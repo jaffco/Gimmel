@@ -11,7 +11,7 @@ namespace giml {
     class Phasor {
     protected:
         int sampleRate;
-        T phase = 0.f, frequency = 0.f, phaseIncrement = 0.f;
+        T phase = 0.0, frequency = 0.0, phaseIncrement = 0.0;
 
     public:
         Phasor() = delete;
@@ -34,6 +34,19 @@ namespace giml {
         }
 
         /**
+         * @brief Increments and returns `phase` 
+         * @return `phase` (after increment)
+         * @todo replace wrapping with `phase -= std::floor(phase)`
+         */
+        virtual T processSample() {
+            this->phase += this->phaseIncrement; // increment phase
+            if (this->phase >= 1) { this->phase -= 1; } // if waveform zenith, wrap phase
+            if (this->frequency < 0) { // if negative frequency...
+                return 1.f - this->phase; // return reverse phasor
+            } else { return this->phase; } // return phasor
+        }
+
+        /**
          * @brief Sets the oscillator's sample rate 
          * @param sampRate sample rate of your project
          */
@@ -49,18 +62,6 @@ namespace giml {
         virtual void setFrequency(T freqHz) {
             this->frequency = freqHz;
             this->phaseIncrement = ::abs(this->frequency) / static_cast<T>(this->sampleRate);
-        }
-
-        /**
-         * @brief Increments and returns `phase` 
-         * @return `phase` (after increment)
-         */
-        virtual T processSample() {
-            this->phase += this->phaseIncrement; // increment phase
-            if (this->phase >= 1) {this->phase -= 1;} // if waveform zenith, wrap phase
-            if (this->frequency < 0) { // if negative frequency...
-                return 1.f - this->phase; // return reverse phasor
-            } else {return this->phase;} // return phasor
         }
 
         /**
@@ -80,7 +81,7 @@ namespace giml {
         virtual T getPhase() {
             if (this->frequency < 0) { // if negative frequency...
                 return 1 - this->phase; // return reverse phasor
-            } else {return this->phase;} // return phasor
+            } else { return this->phase; } // return phasor
         }
     };
 

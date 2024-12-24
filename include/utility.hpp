@@ -27,9 +27,7 @@ namespace giml {
      * @return input value in dB
      */
     float aTodB(float ampVal) {
-        if (ampVal == 0) {
-            ampVal += 1e-6;
-        }
+        if (ampVal == 0) { ampVal += 1e-6; } // prevents nans for input of 0
         return 20.f * ::log10f(::fabs(ampVal));
     }
 
@@ -63,7 +61,7 @@ namespace giml {
      * @return `in1 * (1-mix) + in2 * mix`
      */
     template <typename T>
-    T linMix(T in1, T in2, T mix = 0) {
+    T linMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
         return in1 * (1-mix) + in2 * mix;
     }
@@ -82,7 +80,7 @@ namespace giml {
     }
 
     /**
-     * @brief clips an input number to keep it within specified bounds
+     * @brief clips an input number to keep it within specified bounds (inclusive)
      * @param in input number
      * @param min minimum bound
      * @param max maximum bound
@@ -90,9 +88,7 @@ namespace giml {
      */
     template <typename T>
     T clip(T in, T min, T max) {
-        if (in < min) {return min;}
-        else if (in > max) {return max;}
-        else {return in;}
+        return (in < min) ? min : (in > max ? max : in);
     }
 
     /**
@@ -122,8 +118,8 @@ namespace giml {
     }
 
     /**
-     * @brief calculates the number of samples a given decay multiplier 
-     * will need to decay by -60dB.
+     * @brief calculates the number of samples 
+     * a given decay multiplier will need to decay by -60dB.
      *
      * See Generating Sound & Organizing Time I - Wakefield and Taylor 2022
      * Chapter 6 pg. 168
@@ -159,28 +155,26 @@ namespace giml {
     }
 
     /**
-     * @brief Effect class that implements a bypass switch (enabled by default)
+     * @brief Effect class that implements a toggle switch (disabled by default)
      */
     template <typename T>
     class Effect {
     public:
         Effect() {}
         virtual ~Effect() {}
-        virtual void enable() {
-            this->enabled = true;
-        }
 
-        virtual void disable() {
-            this->enabled = false;
-        }
+        // `enable()`/`disable()` soon to be deprecated
+        virtual void enable() { this->enabled = true; } 
+        // `enable()`/`disable()` soon to be deprecated
+        virtual void disable() { this->enabled = false; }
         
-        virtual void toggle() {
-            this->enabled = !(this->enabled);
-        }
+        /**
+         * @brief `toggle()` function with overloads. 
+         */
+        virtual void toggle() { this->enabled = !(this->enabled); }
+        virtual void toggle(bool desiredState) { this->enabled = desiredState; }
 
-        virtual inline T processSample(const T& in) {
-            return in;
-        }
+        virtual inline T processSample(const T& in) { return in; }
 
     protected:
         bool enabled = false;
@@ -201,18 +195,18 @@ namespace giml {
         }
 
         void tick() {
-            if (done) {return;}
+            if (done) { return; }
             n++;
-            if (n == N) {this->done = true;}
+            if (n >= N) { this->done = true; }
         }
 
-        bool isDone() {return done;}
+        bool isDone() { return done; }
 
-        int timeS() {return n;}
+        int timeS() { return n; }
 
         T timeU() {
-            if (N == 0) {return static_cast<T>(0);} // Avoid division by zero
-            if (done) {return 1;}
+            if (N == 0) { return static_cast<T>(0); } // Avoid division by zero
+            if (done) { return 1; }
             return static_cast<T>(n) / static_cast<T>(N);
         }
     };
@@ -220,7 +214,7 @@ namespace giml {
     /**
      * @brief Circular buffer implementation. 
      * Handy for effects that require a delay line.
-     * TODO: Add allpass interpolation -JAJ
+     * TODO: Add allpass interpolation
      * See Generating Sound & Organizing Time I - Wakefield and Taylor 2022 Chapter 7 pg. 223
      */
     template <typename T>
@@ -236,9 +230,7 @@ namespace giml {
          * @param size in a delay line, the number of past samples stored
          */
         void allocate(size_t size) {
-            if (this->pBackingArr) {
-                free(this->pBackingArr);
-            }
+            if (this->pBackingArr) { free(this->pBackingArr); } // free if occupied
             this->bufferSize = size;
             this->pBackingArr = (T*)calloc(this->bufferSize, sizeof(T)); // zero-fill values
         }
@@ -260,9 +252,7 @@ namespace giml {
         // Copy assignment constructor
         CircularBuffer& operator=(const CircularBuffer& c) {
             //There is a previous object here so first we need to free the previous buffer
-            if (this->pBackingArr) {
-                free(this->pBackingArr);
-            }
+            if (this->pBackingArr) { free(this->pBackingArr); }
             this->bufferSize = c.bufferSize;
             this->pBackingArr = (T*)calloc(bufferSize, sizeof(T));
             for (size_t i = 0; i < this->bufferSize; i++) {
@@ -272,11 +262,8 @@ namespace giml {
             return *this;
         }
 
-        ~CircularBuffer() {
-            if (this->pBackingArr) {
-                free(pBackingArr);
-            }
-        }
+        // Destructor that frees the memory
+        ~CircularBuffer() { if (this->pBackingArr) { free(pBackingArr); } }
 
         /**
          * @brief Writes a new sample to the buffer
@@ -296,14 +283,11 @@ namespace giml {
          * @return `buffer[writeIndex - delayInSamples]`
          */
         inline T readSample(size_t delayInSamples) const {
-            if (delayInSamples >= this->bufferSize) { // limit delay to maxIndex
-                delayInSamples = this->bufferSize - 1;
-            }
+            // limit delay to maxIndex
+            if (delayInSamples >= this->bufferSize) { delayInSamples = this->bufferSize - 1; }
             long int readIndex = this->writeIndex - delayInSamples; // calculate readIndex
-            if (readIndex < 0) {
-                readIndex += this->bufferSize; // circular logic
-            }
-            return this->pBackingArr[readIndex];
+            if (readIndex < 0) { readIndex += this->bufferSize; } // circular logic 
+          return this->pBackingArr[readIndex];
         }
 
         inline T readSample(int delayInSamples) const {
@@ -325,13 +309,17 @@ namespace giml {
                 + (this->readSample(readIndex2) * frac); 
         }
 
+        /**
+         * @brief overload for doubles
+         */
         inline T readSample(double delayInSamples) const {
             return this->readSample((float)delayInSamples);
         }
-
-        size_t size() const {
-            return this->bufferSize;
-        }
+        
+        /**
+         * @brief getter for `bufferSize`
+         */
+        size_t size() const { return this->bufferSize; }
     };
 
     /**
@@ -344,7 +332,7 @@ namespace giml {
         size_t length, initialCapacity, totalCapacity;
 
         void resize(size_t newCapacity) {
-            T* newSpace = (T*)::realloc(this->pBackingArr, newCapacity * sizeof(T));
+            T* newSpace = (T*)realloc(this->pBackingArr, newCapacity * sizeof(T));
             if (newCapacity > this->totalCapacity) {
                 //Then we need to 0-initialize the rest of the new space
                 ::memset((void*)(newSpace + this->totalCapacity), 0, (newCapacity - this->totalCapacity) * sizeof(T));
@@ -356,7 +344,7 @@ namespace giml {
     public:
         //Constructor
         DynamicArray(size_t initialCapacity = 4) {
-            this->pBackingArr = (T*)::calloc(initialCapacity, sizeof(T)); //Needs to be calloc so that the data is zero-ed out
+            this->pBackingArr = (T*)calloc(initialCapacity, sizeof(T)); //Needs to be calloc so that the data is zero-ed out
             this->initialCapacity = initialCapacity;
             this->totalCapacity = initialCapacity;
             this->length = 0;
@@ -364,7 +352,7 @@ namespace giml {
 
         //Copy constructor
         DynamicArray(const DynamicArray& d) {
-            this->pBackingArr = (T*)::malloc(d.totalCapacity * sizeof(T));
+            this->pBackingArr = (T*)malloc(d.totalCapacity * sizeof(T));
             this->initialCapacity = d.initialCapacity;
             this->totalCapacity = d.totalCapacity;
             this->length = d.length;
@@ -375,7 +363,7 @@ namespace giml {
         }
         //Copy assignment operator
         DynamicArray& operator=(const DynamicArray& d) {
-            this->pBackingArr = (T*)::malloc(d.totalCapacity * sizeof(T));
+            this->pBackingArr = (T*)malloc(d.totalCapacity * sizeof(T));
             this->initialCapacity = d.initialCapacity;
             this->totalCapacity = d.totalCapacity;
             this->length = d.length;
@@ -391,16 +379,11 @@ namespace giml {
             for (size_t i = 0; i < this->length; i++) {
                 this->pBackingArr[i].~T(); //Make sure to call the destructor if the object needs to be cleaned up
             }
-            ::free(this->pBackingArr);
+            free(this->pBackingArr);
         }
 
-        size_t size() const {
-            return this->length;
-        }
-
-        size_t getCapacity() const {
-            return this->totalCapacity;
-        }
+        size_t size() const { return this->length; }
+        size_t getCapacity() const { return this->totalCapacity; }
 
         void pushBack(const T& val) {
             if (this->length == this->totalCapacity) {
@@ -412,7 +395,7 @@ namespace giml {
         void removeAt(size_t indexToRemove) {
             if (indexToRemove >= this->length || indexToRemove < 0) {
                 printf("Array access out of bounds");
-                throw std::out_of_range("Index out of range");
+                //throw std::out_of_range("Index out of range");
             }
             for (size_t i = indexToRemove; i < this->length - 1; ++i) {
                 this->pBackingArr[i] = this->pBackingArr[i + 1]; //Shift all elements up by 1
@@ -425,18 +408,15 @@ namespace giml {
             }
         }
 
-        T popBack() { //Removes & returns the last element in the dynamic array
+        T popBack() { // Removes & returns the last element in the dynamic array
             if (this->length > 0) {
                 T returnVal = (*this)[this->length - 1];
                 this->removeAt(this->length - 1);
-                return returnVal;
-            }
-            else {
-                printf("Array is already empty!/n");
-            }
+              return returnVal;
+            } else { printf("Array is already empty!/n"); }
         }
 
-        //Array access operators
+        // Array access operators
         T& operator[](size_t index) {
             if (index >= this->length || index < 0) {
                 printf("Array access out of bounds/n");
@@ -452,43 +432,55 @@ namespace giml {
             return this->pBackingArr[index];
         }
 
-        //Iterator operators to support range-based for loop syntax
-        T* begin() {
-            return this->pBackingArr;
-        }
-
-        const T* begin() const {
-            return this->pBackingArr;
-        }
-
-        T* end() {
-            return this->pBackingArr + this->length;
-        }
-
-        const T* end() const {
-            return this->pBackingArr + this->length;
-        }
+        // Iterator operators to support range-based for loop syntax
+        T* begin() { return this->pBackingArr; }
+        const T* begin() const { return this->pBackingArr; }
+        T* end() { return this->pBackingArr + this->length; }
+        const T* end() const { return this->pBackingArr + this->length; }
     };
 
     /**
      * @brief This will be the Effects Line class to set up many Effects in series and pass values
-     * through an entire signal chain. Acts as std::vector<> to some certain extent. Basic usage:
+     * through an entire signal chain. Acts as std::vector<> to some certain extent.
+     * It works on pointers to `Effect`s so all you need to do is `pushBack(Effect*)`
      * 
-     * giml::Biquad<float> b;
-     * giml::Reverb<float> r;
-     * EffectsLine<float> signalChain;
-     * signalChain.push_back(b);
-     * signalChain.push_back(r);
+     * 
+     * 
+     * Suggested usage (unique pointer not necessary):
+     * 
+     * ```cpp
+     * 
+     * // Set up your effects classes:
+     * 
+     * std::unique_ptr<giml::Biquad<float>> mBiquad;
+     * std::unique_ptr<giml::Reverb<float>> mReverb;
+     * EffectsLine<float> signalChain; //Supply the same data type you use
+     * 
+     * mBiquad = std::make_unique<giml::Biquad<float>>(sampleRate);
+     * mReverb = std::make_unique<giml::Reverb<float>>(sampleRate);
+     * 
+     * // Instantiate params:
+     * 
+     * mBiquad->setType(giml::Biquad<float>::BiquadUseCase::LPF_1st);
+     * mReverb->setParams(time, regen, damping, space, absorptionCoefficient, type);
+     * 
+     * 
+     * // Add them manually in whatever order you would like them applied:
+     * 
+     * signalChain.pushBack(mBiquad.get());
+     * signalChain.pushBack(mReverb.get());
+     * 
+     * 
      * signalChain.processSample(0.5f);
-     * 
-     * Can later change b & r directly, changes should take effect in EffectsLine
+     * ```
+     * Can later change mBiquad & mReverb directly, changes should take effect in EffectsLine
      * 
      * @tparam T 
      */
     template <typename T>
-    class EffectsLine : private DynamicArray<Effect<T>> {
+    class EffectsLine : public DynamicArray<Effect<T>*> {
     public:
-        EffectsLine(size_t initialCapacity = 5): DynamicArray<Effect<T>>(initialCapacity) {}
+        EffectsLine(size_t initialCapacity = 5): DynamicArray<Effect<T>*>(initialCapacity) {}
         //Copy constructor
         EffectsLine(const EffectsLine& e) {}
         //Copy assignment operator
@@ -504,10 +496,10 @@ namespace giml {
          */
         T processSample(T in) {
             T returnVal = in;
-            for (const Effect<T>& e : this) {
-                returnVal = e.processSample(returnVal);
+            for (Effect<T>* e : *this) {
+                returnVal = e->processSample(returnVal);
             }
-            return returnVal;
+          return returnVal;
         }
     };
 
@@ -533,7 +525,7 @@ namespace giml {
             while (currNode != this->head) {
                 tempNodeToDelete = currNode;
                 currNode = currNode->next;
-                ::free(tempNodeToDelete);
+                free(tempNodeToDelete);
             }
             //startingNode->next = this->head;
         }
@@ -569,37 +561,19 @@ namespace giml {
             }
         }
         // Copy assignment operator
-        LinkedList<T>& operator=(const giml::LinkedList<T>& l) {
-
-        }
-        //Destructor
+        LinkedList<T>& operator=(const giml::LinkedList<T>& l) {}
+        // Destructor
         ~LinkedList() {
             // Clean up entire LinkedList
             freeUpRestOfList(this->head);
             //free(this->head);
         }
 
-
-        size_t size() {
-            return this->length;
-        }
+        /**
+         * @brief getter for size
+         */
+        size_t size() { return this->length; }
     };
-    // template <typename T>
-    // struct isFloatingPoint {
-    //     static const bool val = false;
-    // };
 
-    // template <>
-    // struct isFloatingPoint<float> {
-    //     static const bool val = true;
-    // };
-    // template <>
-    // struct isFloatingPoint<double> {
-    //     static const bool val = true;
-    // };
-    // template <>
-    // struct isFloatingPoint<long double> {
-    //     static const bool val = true;
-    // };
-}
+} // namespace giml
 #endif

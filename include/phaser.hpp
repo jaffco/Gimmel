@@ -6,7 +6,7 @@
 #include "biquad.hpp"
 namespace giml {
     /**
-     * @brief This class implements a basic phaser effect
+     * @brief This class implements a basic phaser effect (INCOMPLETE)
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
      */
@@ -14,18 +14,18 @@ namespace giml {
     class Phaser : public Effect<T> {
     private:
         int sampleRate;
-        float rate = 1.f;
+        T rate = 0.2, last = 0.0;
         giml::TriOsc<T> osc;
 
-        static const int N = 6;
-        giml::Biquad<T> filterbank[N];
+        size_t numStages = 6;
+        giml::Biquad<T> filterbank[numStages];
 
     public:
         Phaser() = delete;
         Phaser (int samprate) : sampleRate(samprate), osc(samprate), filterbank{samprate, samprate, samprate, samprate, samprate, samprate} {
             this->osc.setFrequency(this->rate);
-            for (int i = 0; i < this->N; i++) {
-                this->filterbank[i].setType(giml::Biquad<float>::BiquadUseCase::APF_1st);
+            for (auto& f : filterbank) {
+                f->setType(giml::Biquad<float>::BiquadUseCase::APF_2nd);
             }
         }
 
@@ -33,9 +33,8 @@ namespace giml {
          * @brief 
          * @param in current sample
          * @return 
-         * TODO: 
          */
-        T processSample(T in) {
+        inline T processSample(const T& in) {
             float wet = in;
             float mod = osc.processSample();
 
@@ -49,8 +48,16 @@ namespace giml {
                 wet = this->filterbank[i].processSample(wet);
             }
 
-            float output = (in * 0.5) + (wet * 0.5);  
-          return output; 
+            return output; 
+        }
+
+        /**
+         * @brief sets rate, depth, feedback
+         */
+        void setParams(T rate = 0.2, T depth = 1.f, T feedback = 0.707) {
+            this->setRate(rate);
+            this->setDepth(depth);
+            this->setFeedback(feedback);
         }
 
         /**
