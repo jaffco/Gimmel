@@ -34,7 +34,7 @@ namespace giml {
          * @param in current sample
          * @return 
          */
-        T processSample(T in) {
+        inline T processSample(const T& in) {
             float wet = in;
             float mod = osc.processSample();
 

@@ -44,7 +44,7 @@ namespace giml {
          * @return `in` blended with past input. Changes in temporal distance 
          * from current sample create pitch-shifting via the doppler effect 
          */
-        T processSample(T in) {
+        inline T processSample(const T& in) override {
             // bypass behavior
             this->buffer.writeSample(in);
             if (!this->enabled) { return in; }
