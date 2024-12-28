@@ -1,12 +1,12 @@
 #ifndef GIML_PHASER_HPP
 #define GIML_PHASER_HPP
-#include <math.h>
 #include "utility.hpp"
 #include "oscillator.hpp"
 #include "biquad.hpp"
+
 namespace giml {
     /**
-     * @brief This class implements a basic phaser effect (INCOMPLETE)
+     * @brief This class implements a basic phaser effect (BROKEN)
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
      */
@@ -14,49 +14,44 @@ namespace giml {
     class Phaser : public Effect<T> {
     private:
         int sampleRate;
-        T rate = 0.2, last = 0.0;
+        static const size_t numStages = 6;
+        T rate = 0.0, feedback = 0.0, last = 0.0;
         giml::TriOsc<T> osc;
-
-        size_t numStages = 6;
         giml::Biquad<T> filterbank[numStages];
 
     public:
         Phaser() = delete;
-        Phaser (int samprate) : sampleRate(samprate), osc(samprate), filterbank{samprate, samprate, samprate, samprate, samprate, samprate} {
-            this->osc.setFrequency(this->rate);
+        Phaser(int samprate) : sampleRate(samprate), osc(samprate), filterbank{samprate, samprate, samprate, samprate, samprate, samprate} {
             for (auto& f : filterbank) {
-                f->setType(giml::Biquad<float>::BiquadUseCase::APF_2nd);
+                f.setType(Biquad<T>::BiquadUseCase::APF_1st);
+                f.enable();
             }
+            this->setParams();
         }
 
         /**
          * @brief 
          * @param in current sample
-         * @return 
+         * @return mix of current input and last output with time-varying comb filter
          */
-        inline T processSample(const T& in) {
-            float wet = in;
-            float mod = osc.processSample();
+        T processSample(const T& in) {
+            last = giml::linMix<T>(in, last, this->feedback);
+            T mod = osc.processSample();
 
-            for (int i = 0; i < this->N; i++) {
-                //this->filterbank[i].setParams(Fc(i) + mod * depth(i))
-                // Fc(i) = NyquistFreq / (2 * (N - i))
-                // mod ranges (-1, 1)
-                // depth(i) = Fc(i) * 0.5
-                float Fc = (this->sampleRate * 0.5) / (2.f * (N - i));
-                this->filterbank[i].setParams(Fc + mod * (Fc * 0.5f));
-                wet = this->filterbank[i].processSample(wet);
+            for (int stage = 0; stage < numStages; stage++) {
+                T Fc = (this->sampleRate * 0.5) / (2.0 * (numStages - stage)); // should store these
+                this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5));
+                last = this->filterbank[stage].processSample(last);
             }
-
-            return output; 
+            last = giml::linMix<T>(in, last);
+            return last; 
         }
 
         /**
          * @brief sets rate, depth, feedback
          */
-        void setParams(T rate = 0.2, T depth = 1.f, T feedback = 0.707) {
+        void setParams(T rate = 1.0, T feedback = 0.85) {
             this->setRate(rate);
-            this->setDepth(depth);
             this->setFeedback(feedback);
         }
 
@@ -64,8 +59,16 @@ namespace giml {
          * @brief Set modulation rate- the frequency of the LFO.  
          * @param freq frequency in Hz 
          */
-        void setRate(float freq) {
+        void setRate(T freq) {
             this->osc.setFrequency(freq); // set frequency in Hz
+        }
+
+        /**
+         * @brief Set feedback gain. Clamped to [-1, 1].
+         * @param fbGain feedback gain.
+         */
+        void setFeedback(T fbGain) { 
+            this->feedback = giml::clip<T>(fbGain, -1, 1); 
         }
     };
 }
