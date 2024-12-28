@@ -14,17 +14,19 @@ namespace giml {
     class Phaser : public Effect<T> {
     private:
         int sampleRate;
-        static const size_t numStages = 6;
+        size_t numStages = 0;
         T rate = 0.0, feedback = 0.0, last = 0.0;
         giml::TriOsc<T> osc;
-        giml::Biquad<T> filterbank[numStages];
+        giml::DynamicArray<giml::Biquad<T>> filterbank;
 
     public:
         Phaser() = delete;
-        Phaser(int samprate) : sampleRate(samprate), osc(samprate), filterbank{samprate, samprate, samprate, samprate, samprate, samprate} {
-            for (auto& f : filterbank) {
+        Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
+            for (size_t stage = 0; stage < numStages; stage++) {
+                Biquad<T> f(samprate);
                 f.setType(Biquad<T>::BiquadUseCase::APF_1st);
                 f.enable();
+                filterbank.pushBack(f);
             }
             this->setParams();
         }
@@ -41,7 +43,7 @@ namespace giml {
             for (int stage = 0; stage < numStages; stage++) {
                 T Fc = (this->sampleRate * 0.5) / (2.0 * (numStages - stage)); // should store these
                 this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5));
-                last = this->filterbank[stage].processSample(last);
+                last = this->filterbank[stage].processSample(last); // currently broken
             }
             last = giml::linMix<T>(in, last);
             return last; 
