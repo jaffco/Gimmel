@@ -46,6 +46,8 @@ namespace giml {
                 last = this->filterbank[stage].processSample(last); // currently broken
             }
             last = giml::linMix<T>(in, last);
+
+            if (!this->enabled) { return in; }
             return last; 
         }
 

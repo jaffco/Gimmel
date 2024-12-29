@@ -42,9 +42,11 @@ namespace giml {
             PEQ_constQ      // Parametric EQ Filter (const Q)
         };
 
-        //Constructor
+        // Constructor
         Biquad() = delete;
         Biquad(int sampleRate) : sampleRate(sampleRate) {}
+
+        // Copy constructor
         Biquad(const Biquad<T>& b) {
             this->useCase = b.useCase;
 
@@ -66,6 +68,7 @@ namespace giml {
             this->Q = b.Q;
             this->gainDB = b.gainDB;
         }
+
         // Copy assignment operator
         Biquad<T>& operator=(const Biquad<T>& b) {
             this->useCase = b.useCase;
@@ -90,7 +93,8 @@ namespace giml {
 
             return *this;
         }
-        //TODO: Copy constructor + Copy assignment constructor
+
+        // Destructor 
         ~Biquad() {}
 
         void setType(BiquadUseCase type) {
@@ -572,6 +576,6 @@ namespace giml {
 
 
     };
-}
+} // namespace giml
 
 #endif
