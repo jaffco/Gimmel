@@ -17,7 +17,7 @@ namespace giml {
     class Flanger : public Effect<T> {
     private:
         int sampleRate;
-        T rate = 0.20, depth = 0.0, blend = 0.5;
+        T rate = 0.0, depth = 0.0, blend = 0.0;
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
 
@@ -50,7 +50,7 @@ namespace giml {
             // y[n] = x[n] + x[depth + osc_n * depth]
             float readIndex = this->depth + this->osc.processSample() * this->depth;
             T output = this->buffer.readSample(readIndex);
-            return giml::powMix<T>(in, last, this->blend); // return mix
+            return giml::powMix<T>(in, output, this->blend); // return mix
         }
 
         /**
