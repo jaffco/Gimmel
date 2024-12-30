@@ -9,6 +9,7 @@ namespace giml {
      * @brief This class implements a basic phaser effect (BROKEN)
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
+     * @todo depth control (variable number of stages)
      */
     template <typename T>
     class Phaser : public Effect<T> {
@@ -17,16 +18,17 @@ namespace giml {
         size_t numStages = 0;
         T rate = 0.0, feedback = 0.0, last = 0.0;
         giml::TriOsc<T> osc;
-        giml::DynamicArray<giml::Biquad<T>> filterbank;
+        //giml::DynamicArray<giml::Biquad<T>> filterbank;
+        std::vector<giml::Biquad<T>> filterbank;
 
     public:
         Phaser() = delete;
         Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
             for (size_t stage = 0; stage < numStages; stage++) {
-                Biquad<T> f(samprate);
+                auto f = giml::Biquad<T>(samprate);
                 f.setType(Biquad<T>::BiquadUseCase::APF_1st);
                 f.enable();
-                filterbank.pushBack(f);
+                filterbank.push_back(f);
             }
             this->setParams();
         }
@@ -37,16 +39,17 @@ namespace giml {
          * @return mix of current input and last output with time-varying comb filter
          */
         T processSample(const T& in) {
-            last = giml::linMix<T>(in, last, this->feedback);
+            last = giml::powMix<T>(in, last, this->feedback);
             T mod = osc.processSample();
 
-            for (int stage = 0; stage < numStages; stage++) {
+            // pass through filterbank to create phase distortion
+            for (size_t stage = 0; stage < numStages; stage++) {
                 T Fc = (this->sampleRate * 0.5) / (2.0 * (numStages - stage)); // should store these
                 this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5));
                 last = this->filterbank[stage].processSample(last); // currently broken
             }
-            last = giml::linMix<T>(in, last);
 
+            last = giml::powMix<T>(in, last); // combine with input to create comb filter effect
             if (!this->enabled) { return in; }
             return last; 
         }

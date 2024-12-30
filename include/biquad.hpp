@@ -48,6 +48,7 @@ namespace giml {
 
         // Copy constructor
         Biquad(const Biquad<T>& b) {
+            this->enabled = b.enabled;
             this->useCase = b.useCase;
 
             this->sampleRate = b.sampleRate;
@@ -71,6 +72,7 @@ namespace giml {
 
         // Copy assignment operator
         Biquad<T>& operator=(const Biquad<T>& b) {
+            this->enabled = b.enabled;
             this->useCase = b.useCase;
 
             this->sampleRate = b.sampleRate;
