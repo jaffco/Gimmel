@@ -18,8 +18,7 @@ namespace giml {
         size_t numStages = 0;
         T rate = 0.0, feedback = 0.0, last = 0.0;
         giml::TriOsc<T> osc;
-        //giml::DynamicArray<giml::Biquad<T>> filterbank;
-        std::vector<giml::Biquad<T>> filterbank;
+        giml::DynamicArray<giml::Biquad<T>> filterbank;
 
     public:
         Phaser() = delete;
@@ -28,7 +27,7 @@ namespace giml {
                 auto f = giml::Biquad<T>(samprate);
                 f.setType(Biquad<T>::BiquadUseCase::APF_1st);
                 f.enable();
-                filterbank.push_back(f);
+                filterbank.pushBack(f);
             }
             this->setParams();
         }
@@ -38,14 +37,14 @@ namespace giml {
          * @param in current sample
          * @return mix of current input and last output with time-varying comb filter
          */
-        T processSample(const T& in) {
+        inline T processSample(const T& in) {
             last = giml::powMix<T>(in, last, this->feedback);
             T mod = osc.processSample();
 
             // pass through filterbank to create phase distortion
             for (size_t stage = 0; stage < numStages; stage++) {
                 T Fc = (this->sampleRate * 0.5) / (2.0 * (numStages - stage)); // should store these
-                this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5));
+                this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5)); // set cutoff frequency
                 last = this->filterbank[stage].processSample(last); // currently broken
             }
 
