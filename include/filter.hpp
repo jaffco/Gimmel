@@ -8,7 +8,7 @@ namespace giml {
     template <typename T>
     class OnePole {
     private:
-        T a = 0.0;
+        T g = 0.0;
         T y_1 = 0.0; 
 
     public:
@@ -18,14 +18,14 @@ namespace giml {
 
         // Copy constructor
         OnePole(const OnePole<T>& op) {
-            this->a = op.a;
-            this->y_1 = op.a;
+            this->g = op.g;
+            this->y_1 = op.y_1;
         }
 
         // Copy assignment operator 
         OnePole<T>& operator=(const OnePole<T>& op) {
-            this->a = op.a;
-            this->y_1 = op.a;
+            this->g = op.g;
+            this->y_1 = op.y_1;
             return *this;
         }
 
@@ -35,7 +35,7 @@ namespace giml {
          * @return `in * (1-a) + y_1 * a`
          */
         inline T lpf(const T& in) {
-            this->y_1 = giml::linMix(in, y_1, a);
+            this->y_1 = giml::linMix(in, y_1, g);
             return y_1;
         }
 
@@ -54,18 +54,18 @@ namespace giml {
          * @param Hz cutoff frequency in Hz
          * @param sampleRate project sample rate
          */
-        void setCutoff(T Hz, T sampleRate) {
-            Hz = giml::clip<T>(std::abs(Hz), 0, sampleRate / 2);
-            Hz *= -M_2PI / sampleRate;
-            this->a = std::pow(M_E, Hz);
+        void setCutoff(const T& Hz, const T& sampleRate) {
+            T freq = giml::clip<T>(::abs(Hz), 0, sampleRate / 2);
+            freq *= -M_2PI / sampleRate;
+            this->g = ::pow(M_E, freq);
         }
 
         /**
          * @brief set filter coefficient manually
          * @param gVal desired coefficient. 0 = bypass, 1 = sustain
          */
-        void setG(T aVal) {
-            this->a = giml::clip<T>(aVal, 0, 1);
+        void setG(const T& gVal) {
+            this->g = giml::clip<T>(gVal, 0, 1);
         }
 
     };
@@ -120,8 +120,7 @@ namespace giml {
     /**
      * @brief State Variable Filter. Once constructed, 
      * call the operator with an input once per sample to update state,
-     * and the various filter types getters for different responses from a singular instance.
-     * @todo test, revise for style
+     * and the various filter type getters for different responses from a singular instance.
      */
     template <typename T>
     class SVF {
@@ -176,16 +175,15 @@ namespace giml {
          * @param Q "Quality"
          * @param sampleRate project sample rate
          */
-        void setParams(T Hz, T Q, T sampleRate) {
+        void setParams(const T& Hz, const T& Q, const T& sampleRate) {
             // frequency warping 
-            Hz = giml::clip<T>(std::abs(Hz), 0, sampleRate / 4);
-            Hz *= M_PI / sampleRate;
-            Hz = std::tan(Hz);
+            T freq = giml::clip<T>(::abs(Hz), 0, sampleRate / 4);
+            freq *= M_PI / sampleRate;
+            freq = ::tan(freq);
 
             // set filter coefficients
-            if (Q <= 0) { Q = 1e-6; } // clip to avoid division by zero / negative values
-            this->q = Q;
-            this->g = Hz / (Hz + 1);
+            this->q = giml::clip<T>(Q, 1e-6, Q); // avoid div by zero / negative values
+            this->g = freq / (freq + 1);
             this->s1fb = (1 / this->q) + g;
             this->ff = 1 / (s1fb * g + 1);
         }
