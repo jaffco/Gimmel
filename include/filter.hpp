@@ -100,7 +100,7 @@ namespace giml {
          * @param in input sample
          * @return integrator output
          */
-        inline T processSample(const T& in, T g = 0.5) {
+        inline T processSample(const T& in, const T& g = 0.5) {
             T split = in * g;
             T y_0 = split + hist;
             hist = y_0 + split;
