@@ -222,6 +222,10 @@ namespace giml {
 
             return returnVal;
         }
+
+        inline T state() const { return a1*prevX1 + a2*prevX2 - b1*prevY1 - b2*prevY2; } // only works for 2nd order rn
+        inline T getG() const { return a0; }
+
     private:
         BiquadUseCase useCase = BiquadUseCase::PassThroughDefault;
 
