@@ -1,62 +1,62 @@
 #ifndef GIML_PHASER_HPP
 #define GIML_PHASER_HPP
-#include <math.h>
 #include "utility.hpp"
 #include "oscillator.hpp"
-#include "biquad.hpp"
+#include "filter.hpp"
+
 namespace giml {
     /**
-     * @brief This class implements a basic phaser effect (INCOMPLETE)
+     * @brief This class implements a basic phaser effect (BROKEN)
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
+     * @todo depth control (variable number of stages)
+     * @todo resolve zero-delay feedback
      */
     template <typename T>
     class Phaser : public Effect<T> {
     private:
         int sampleRate;
-        T rate = 0.2, last = 0.0;
+        size_t numStages = 0;
+        T rate = 0.0, feedback = 0.0, last = 0.0;
         giml::TriOsc<T> osc;
-
-        size_t numStages = 6;
-        giml::Biquad<T> filterbank[numStages];
+        giml::DynamicArray<giml::SVF<T>> filterbank;
 
     public:
         Phaser() = delete;
-        Phaser (int samprate) : sampleRate(samprate), osc(samprate), filterbank{samprate, samprate, samprate, samprate, samprate, samprate} {
-            this->osc.setFrequency(this->rate);
-            for (auto& f : filterbank) {
-                f->setType(giml::Biquad<float>::BiquadUseCase::APF_2nd);
+        Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
+            for (size_t stage = 0; stage < numStages; stage++) {
+                filterbank.pushBack(giml::SVF<T>());
             }
+            this->setParams();
         }
 
         /**
          * @brief 
          * @param in current sample
-         * @return 
+         * @return mix of current input and last output with time-varying comb filter
          */
         inline T processSample(const T& in) {
-            float wet = in;
-            float mod = osc.processSample();
+            last = giml::powMix<T>(in, last, this->feedback);
+            T mod = osc.processSample();
 
-            for (int i = 0; i < this->N; i++) {
-                //this->filterbank[i].setParams(Fc(i) + mod * depth(i))
-                // Fc(i) = NyquistFreq / (2 * (N - i))
-                // mod ranges (-1, 1)
-                // depth(i) = Fc(i) * 0.5
-                float Fc = (this->sampleRate * 0.5) / (2.f * (N - i));
-                this->filterbank[i].setParams(Fc + mod * (Fc * 0.5f));
-                wet = this->filterbank[i].processSample(wet);
+            // pass through filterbank to create phase distortion
+            for (size_t stage = 0; stage < numStages; stage++) {
+                T Fc = (this->sampleRate * 0.25) / (2.0 * (numStages - stage)); // should store these
+                this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5), 2.0, sampleRate); // set cutoff frequency
+                this->filterbank[stage](last); // update filter state
+                last = this->filterbank[stage].allPass();
             }
 
-            return output; 
+            last = giml::powMix<T>(in, last); // combine with input to create comb filter effect
+            if (!this->enabled) { return in; }
+            return last; 
         }
 
         /**
          * @brief sets rate, depth, feedback
          */
-        void setParams(T rate = 0.2, T depth = 1.f, T feedback = 0.707) {
+        void setParams(const T& rate = 0.5, const T& feedback = 0.85) {
             this->setRate(rate);
-            this->setDepth(depth);
             this->setFeedback(feedback);
         }
 
@@ -64,8 +64,16 @@ namespace giml {
          * @brief Set modulation rate- the frequency of the LFO.  
          * @param freq frequency in Hz 
          */
-        void setRate(float freq) {
+        void setRate(const T& freq) {
             this->osc.setFrequency(freq); // set frequency in Hz
+        }
+
+        /**
+         * @brief Set feedback gain. Clamped to [-1, 1].
+         * @param fbGain feedback gain.
+         */
+        void setFeedback(const T& fbGain) { 
+            this->feedback = giml::clip<T>(fbGain, -1, 1); 
         }
     };
 }
