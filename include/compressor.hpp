@@ -64,14 +64,37 @@ namespace giml {
         }
 
     public:
-        //Constructor
+        // Constructor
         Compressor() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
         Compressor(int sampleRate) : sampleRate(sampleRate) {}
-        //Copy Constructor
+        
+        // Destructor
+        ~Compressor() {}
+
+        // Copy constructor
         Compressor(const Compressor<T>& c) {
-            //TODO:
+            this->enabled = c.enabled;
+            this->sampleRate = c.sampleRate;
+            this->thresh_dB = c.thresh_dB;
+            this->ratio = c.ratio;
+            this->knee_dB = c.knee_dB;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
+            this->makeupGain_dB = c.makeupGain_dB;
         }
-        //TODO: Copy Assignment Operator
+
+        // Copy assignment operator 
+        Compressor<T>& operator=(const Compressor<T>& c) {
+            this->enabled = c.enabled;
+            this->sampleRate = c.sampleRate;
+            this->thresh_dB = c.thresh_dB;
+            this->ratio = c.ratio;
+            this->knee_dB = c.knee_dB;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
+            this->makeupGain_dB = c.makeupGain_dB;
+            return *this;
+        }
 
         /**
          * @brief measures input gain and applies gain reduction

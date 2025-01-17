@@ -14,9 +14,13 @@ namespace giml {
         T phase = 0.0, frequency = 0.0, phaseIncrement = 0.0;
 
     public:
+        // Constructor
         Phasor() = delete;
         Phasor(int sampRate) : sampleRate(sampRate) {}
+
+        // Destructor
         ~Phasor() {}
+
         // Copy constructor
         Phasor(const Phasor<T>& c) {
             this->sampleRate = c.sampleRate;
@@ -24,7 +28,8 @@ namespace giml {
             this->frequency = c.frequency;
             this->phaseIncrement = c.phaseIncrement;
         }
-        // Copy assignment constructor
+
+        // Copy assignment operator
         Phasor<T>& operator=(const Phasor<T>& c) {
             this->sampleRate = c.sampleRate;
             this->phase = c.phase;
@@ -92,7 +97,21 @@ namespace giml {
     template <typename T>
     class SinOsc : public Phasor<T> {
     public:
+        // Constructor
+        SinOsc() = delete;
         SinOsc(int sampRate) : Phasor<T>(sampRate) {}
+
+        // Destructor
+        ~SinOsc() {}
+
+        // Copy constructor
+        SinOsc(const SinOsc<T>& s) : Phasor<T>(s) {}
+
+        // Copy assignment operator 
+        SinOsc<T>& operator=(const SinOsc<T>& s) {
+            Phasor<T>::operator=(s);
+            return *this;
+        }
         
         /**
          * @brief Increments and returns `phase` 
@@ -110,7 +129,21 @@ namespace giml {
     template <typename T>
     class TriOsc : public Phasor<T> {
     public:
+        // Constructor
+        TriOsc() = delete;
         TriOsc(int sampRate) : Phasor<T>(sampRate) {}
+
+        // Destructor
+        ~TriOsc() {}
+
+        // Copy constructor
+        TriOsc(const TriOsc<T>& t) : Phasor<T>(t) {}
+
+        // Copy assignment operator 
+        TriOsc<T>& operator=(const TriOsc<T>& t) {
+            Phasor<T>::operator=(t);
+            return *this;
+        }
 
         /**
          * @brief Increments and returns `phase` 
