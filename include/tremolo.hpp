@@ -17,9 +17,32 @@ namespace giml {
         giml::SinOsc<T> osc;
 
     public:
+        // Constructor
         Tremolo() = delete;
         Tremolo (int samprate) : sampleRate(samprate), osc(samprate) {
             this->osc.setFrequency(1000.0 / this->speed);
+        }
+
+        // Destructor
+        ~Tremolo() {}
+
+        // Copy constructor
+        Tremolo(const Tremolo<T>& t) {
+            this->enabled = t.enabled;
+            this->sampleRate = t.sampleRate;
+            this->speed = t.speed;
+            this->depth = t.depth;
+            this->osc = t.osc;
+        }
+
+        // Copy assignment operator 
+        Tremolo<T>& operator=(const Tremolo<T>& t) {
+            this->enabled = t.enabled;
+            this->sampleRate = t.sampleRate;
+            this->speed = t.speed;
+            this->depth = t.depth;
+            this->osc = t.osc;
+            return *this;
         }
 
         /**

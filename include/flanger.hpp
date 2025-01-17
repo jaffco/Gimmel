@@ -22,6 +22,7 @@ namespace giml {
         giml::TriOsc<T> osc;
 
     public:
+        // Constructor
         Flanger() = delete;
 
         /**
@@ -33,6 +34,32 @@ namespace giml {
         Flanger (int samprate, T maxDepthMillis = 10.0) : sampleRate(samprate), osc(samprate) {
             this->buffer.allocate(giml::millisToSamples(maxDepthMillis, samprate)); // max delay is 10ms
             this->setParams();
+        }
+
+        // Destructor
+        ~Flanger() {}
+
+        // Copy constructor
+        Flanger(const Flanger<T>& f) {
+            this->enabled = f.enabled;
+            this->sampleRate = f.sampleRate;
+            this->rate = f.rate;
+            this->depth = f.depth;
+            this->blend = f.blend;
+            this->buffer = f.buffer;
+            this->osc = f.osc;
+        }
+
+        // Copy assignment operator 
+        Flanger<T>& operator=(const Flanger<T>& f) {
+            this->enabled = f.enabled;
+            this->sampleRate = f.sampleRate;
+            this->rate = f.rate;
+            this->depth = f.depth;
+            this->blend = f.blend;
+            this->buffer = f.buffer;
+            this->osc = f.osc;
+            return *this;
         }
 
         /**

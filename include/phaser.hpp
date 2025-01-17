@@ -22,12 +22,41 @@ namespace giml {
         giml::DynamicArray<giml::SVF<T>> filterbank;
 
     public:
+        // Constructor
         Phaser() = delete;
         Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
             for (size_t stage = 0; stage < numStages; stage++) {
                 filterbank.pushBack(giml::SVF<T>());
             }
             this->setParams();
+        }
+
+        // Destructor
+        ~Phaser() {}
+
+        // Copy constructor
+        Phaser(const Phaser<T>& p) {
+            this->enabled = p.enabled;
+            this->sampleRate = p.sampleRate;
+            this->numStages = p.numStages;
+            this->rate = p.rate;
+            this->feedback = p.feedback;
+            this->last = p.last;
+            this->osc = p.osc;
+            this->filterbank = p.filterbank;
+        }
+
+        // Copy assignment operator 
+        Phaser<T>& operator=(const Phaser<T>& p) {
+            this->enabled = p.enabled;
+            this->sampleRate = p.sampleRate;
+            this->numStages = p.numStages;
+            this->rate = p.rate;
+            this->feedback = p.feedback;
+            this->last = p.last;
+            this->osc = p.osc;
+            this->filterbank = p.filterbank;
+            return *this;
         }
 
         /**

@@ -22,10 +22,37 @@ namespace giml {
         giml::Phasor<T> osc;
 
     public:
+        // Constructor
         Detune() = delete;
         Detune(int samprate, float maxWindowMillis = 300.0) : sampleRate(samprate), osc(samprate) {
             this->osc.setFrequency(1000.0 * ((1.0 - this->pitchRatio) / this->windowSize));
             this->buffer.allocate(giml::millisToSamples(maxWindowMillis, samprate));
+        }
+
+        // Destructor 
+        ~Detune() {}
+
+        // Copy constructor
+        Detune(const Detune<T>& d) {
+            this->enabled = d.enabled;
+            this->sampleRate = d.sampleRate;
+            this->pitchRatio = d.pitchRatio;
+            this->windowSize = d.windowSize;
+            this->blend = d.blend;
+            this->buffer = d.buffer;
+            this->osc = d.osc;
+        }
+
+        // Copy assignment operator 
+        Detune<T>& operator=(const Detune<T>& d) {
+            this->enabled = d.enabled;
+            this->sampleRate = d.sampleRate;
+            this->pitchRatio = d.pitchRatio;
+            this->windowSize = d.windowSize;
+            this->blend = d.blend;
+            this->buffer = d.buffer;
+            this->osc = d.osc;
+            return *this;
         }
 
         /**

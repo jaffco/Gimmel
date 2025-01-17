@@ -14,16 +14,47 @@ namespace giml {
     private:
         int sampleRate;
         T feedback = 0.3, delayTime = 398.0, blend = 0.5, damping = 0.5;
-        giml::onePole<T> loPass; // loPass filter for damping
-        giml::onePole<T> dcBlock; // See Generating Sound & Organizing Time I - Wakefield and Taylor 2022 Chapter 7 pg. 204
+        giml::OnePole<T> loPass; // loPass filter for damping
+        giml::OnePole<T> dcBlock; // See Generating Sound & Organizing Time I - Wakefield and Taylor 2022 Chapter 7 pg. 204
         giml::CircularBuffer<T> buffer; // circular buffer to store past  values
 
     public:
+        // Constructor
         Delay() = delete;
         Delay(int samprate, T maxDelayMillis = 3000) : sampleRate(samprate) {
             this->buffer.allocate(giml::millisToSamples(maxDelayMillis, samprate)); // max delayTime is 3 seconds
             this->loPass.setG(this->damping); // set damping 
             this->dcBlock.setCutoff(3.0, samprate);// set dcBlock at 3Hz
+        }
+
+        // Destructor
+        ~Delay() {}
+
+        // Copy constructor
+        Delay(const Delay<T>& d) {
+            this->enabled = d.enabled;
+            this->sampleRate = d.sampleRate;
+            this->feedback = d.feedback;
+            this->delayTime = d.delayTime;
+            this->blend = d.blend;
+            this->damping = d.damping;
+            this->loPass = d.loPass;
+            this->dcBlock = d.dcBlock;
+            this->buffer = d.buffer;
+        }
+
+        // Copy assignment operator 
+        Delay<T>& operator=(const Delay<T>& d) {
+            this->enabled = d.enabled;
+            this->sampleRate = d.sampleRate;
+            this->feedback = d.feedback;
+            this->delayTime = d.delayTime;
+            this->blend = d.blend;
+            this->damping = d.damping;
+            this->loPass = d.loPass;
+            this->dcBlock = d.dcBlock;
+            this->buffer = d.buffer;
+            return *this;
         }
         
         /**
