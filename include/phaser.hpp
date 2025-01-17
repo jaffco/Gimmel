@@ -55,7 +55,7 @@ namespace giml {
         /**
          * @brief sets rate, depth, feedback
          */
-        void setParams(const T& rate = 1.0, const T& feedback = 0.85) {
+        void setParams(const T& rate = 0.5, const T& feedback = 0.85) {
             this->setRate(rate);
             this->setFeedback(feedback);
         }
