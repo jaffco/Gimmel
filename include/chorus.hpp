@@ -21,6 +21,7 @@ namespace giml {
         giml::TriOsc<T> osc;
 
     public:
+        // Constructor
         Chorus() = delete;
 
         /**
@@ -35,6 +36,34 @@ namespace giml {
             this->depth = giml::millisToSamples(15.0, samprate);
             this->offset = giml::millisToSamples(20.0, samprate); 
             this->buffer.allocate(giml::millisToSamples(maxDepthMillis, samprate)); // max delay is 50ms 
+        }
+
+        // Destructor
+        ~Chorus() {}
+
+        // Copy constructor
+        Chorus(const Chorus<T>& c) {
+            this->enabled = c.enabled;
+            this->sampleRate = c.sampleRate;
+            this->rate = c.rate;
+            this->depth = c.depth;
+            this->offset = c.offset;
+            this->blend = c.blend;
+            this->buffer = c.buffer;
+            this->osc = c.osc;
+        }
+
+        // Copy assignment operator 
+        Chorus<T>& operator=(const Chorus<T>& c) {
+            this->enabled = c.enabled;
+            this->sampleRate = c.sampleRate;
+            this->rate = c.rate;
+            this->depth = c.depth;
+            this->offset = c.offset;
+            this->blend = c.blend;
+            this->buffer = c.buffer;
+            this->osc = c.osc;
+            return *this;
         }
 
         /**
