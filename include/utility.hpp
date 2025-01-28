@@ -16,7 +16,7 @@ namespace giml {
      * @param dBVal input value in dB
      * @return input value in amplitude
      */
-    float dBtoA(float dBVal) {
+    inline float dBtoA(float dBVal) {
         return ::powf(10.f, dBVal / 20.f);
     }
 
@@ -26,7 +26,7 @@ namespace giml {
      * @param ampVal input value in linear amplitude
      * @return input value in dB
      */
-    float aTodB(float ampVal) {
+    inline float aTodB(float ampVal) {
         if (ampVal == 0) { ampVal += 1e-6; } // prevents nans for input of 0
         return 20.f * ::log10f(::fabs(ampVal));
     }
@@ -38,7 +38,7 @@ namespace giml {
      * @param sampleRate sample rate of your project
      * @return msVal translated to samples
      */
-    float millisToSamples(float msVal, int sampRate) {
+    inline float millisToSamples(float msVal, int sampRate) {
         return msVal * sampRate / 1000.f;
     }
 
@@ -49,7 +49,7 @@ namespace giml {
      * @param sampleRate samplerate of your project
      * @return numSamples translated to milliseconds
      */
-    float samplesToMillis(int numSamples, int sampRate) {
+    inline float samplesToMillis(int numSamples, int sampRate) {
         return numSamples / (float)sampRate * 1000.f;
     }
 
