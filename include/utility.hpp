@@ -61,7 +61,7 @@ namespace giml {
      * @return `in1 * (1-mix) + in2 * mix`
      */
     template <typename T>
-    T linMix(T in1, T in2, T mix = 0.5) {
+    inline T linMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
         return in1 * (1-mix) + in2 * mix;
     }
@@ -74,7 +74,7 @@ namespace giml {
      * @return `in1 * cos(mix*M_PI_2) + in2 * sin(mix * M_PI_2)`
      */
     template <typename T>
-    T powMix(T in1, T in2, T mix = 0.5) {
+    inline T powMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
         return in1 * std::cos(mix * M_PI_2) + in2 * std::sin(mix * M_PI_2);
     }
@@ -87,7 +87,7 @@ namespace giml {
      * @return clipped input
      */
     template <typename T>
-    T clip(T in, T min, T max) {
+    inline T clip(T in, T min, T max) {
         return (in < min) ? min : (in > max ? max : in);
     }
 
@@ -98,7 +98,7 @@ namespace giml {
      * @return `x / sqrt(x^2 + 1)`
      */
     template <typename T>
-    T biSigmoid(T in) {
+    inline T biSigmoid(T in) {
         return in / ::sqrt(in*in + 1);
     }
 
@@ -111,7 +111,7 @@ namespace giml {
      * @return limited `in`
      */
     template <typename T>
-    T limit(T in, T thresh) {
+    inline T limit(T in, T thresh) {
         T lin = giml::clip(in, -thresh, thresh);
         T nonLin = giml::biSigmoid((in - lin)/(1 - thresh)) * (1 - thresh);
         return lin + nonLin;
@@ -128,14 +128,14 @@ namespace giml {
      * @return num samples needed to reach -60dB
      */
     template <typename T>
-    T t60time(T gVal) {
+    inline T t60time(T gVal) {
         T impulse = 1;
         T counter = 0;
         while (impulse > 2e-10) {
             impulse *= gVal;
             counter++;
         }
-      return counter;
+        return counter;
     }
 
     /**
@@ -149,9 +149,9 @@ namespace giml {
      * @return decay multiplier
      */
     template <typename T>
-    T t60(int numSamps) {
-        T gVal = ::pow(2e-10, 1.f/numSamps);
-      return gVal;
+    inline T t60(T numSamps) {
+        T gVal = ::pow(2e-10, 1.0 / numSamps);
+        return gVal;
     }
 
     /**
