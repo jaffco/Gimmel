@@ -118,7 +118,7 @@ namespace giml {
          * @return `sin(2pi * phase)` (after increment)
          */
         T processSample() override {
-            return ::sin(M_2PI * Phasor<T>::processSample());
+            return sin(M_2PI * Phasor<T>::processSample());
         }
     };
 
