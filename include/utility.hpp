@@ -8,6 +8,7 @@
 #include <stdlib.h> // For malloc/calloc/free
 #include <cstring> 
 #include <stdexcept>
+#include <complex>
 
 namespace giml {
     /**
@@ -76,7 +77,16 @@ namespace giml {
     template <typename T>
     inline T powMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
-        return in1 * std::cos(mix * M_PI_2) + in2 * std::sin(mix * M_PI_2);
+        mix *= M_PI_2;
+
+        // optimized cos/sin computation using Euler's identity
+        // std::complex<T> z = std::polar(T(1.0), mix);
+        // T c = z.real();
+        // T s = z.imag();
+        // return in1 * c + in2 * s;
+
+        // sin/cos to be resolved by math provider 
+        return in1 * cos(mix) + in2 * sin(mix);
     }
 
     /**

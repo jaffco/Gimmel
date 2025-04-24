@@ -128,11 +128,16 @@ namespace giml {
         T q = 0.0, g = 0.0, ff = 0.0, s1fb = 0.0; // filter coefficients
         T x_n = 0.0, hp = 0.0, bp = 0.0, lp = 0.0; // storage for basic outputs
         Trap<T> trap1, trap2; // trap cores containing s1 and s2
+        T freqFactor = 0.0;
 
     public:
         // Default constructor and destructor 
         SVF() {}
         ~SVF() {}
+
+        SVF(T sampleRate) {
+            this->freqFactor = T(M_PI) / sampleRate;
+        }
 
         // Copy constructor
         SVF(const SVF<T>& s) {
@@ -148,6 +153,8 @@ namespace giml {
 
             this->trap1 = s.trap1;
             this->trap2 = s.trap2;
+
+            this->freqFactor = s.freqFactor;
         }
 
         // Copy assignment operator 
@@ -165,6 +172,8 @@ namespace giml {
             this->trap1 = s.trap1;
             this->trap2 = s.trap2;
 
+            this->freqFactor = s.freqFactor;
+
             return *this;
         }
 
@@ -175,17 +184,17 @@ namespace giml {
          * @param Q "Quality"
          * @param sampleRate project sample rate
          */
-        void setParams(const T& Hz, const T& Q, const T& sampleRate) {
+        inline void setParams(const T& Hz, const T& Q, const T& sampleRate) {
             // frequency warping 
             T freq = giml::clip<T>(::abs(Hz), 0, sampleRate / 4);
-            freq *= M_PI / sampleRate;
-            freq = ::tan(freq);
+            freq *= freqFactor;
+            freq = tan(freq);
 
             // set filter coefficients
-            this->q = giml::clip<T>(Q, 1e-6, Q); // avoid div by zero / negative values
-            this->g = freq / (freq + 1);
-            this->s1fb = (1 / this->q) + g;
-            this->ff = 1 / (s1fb * g + 1);
+            this->q = std::max(Q, T(1e-6)); // avoid div by zero / negative values
+            this->g = freq / (freq + T(1.0));
+            this->s1fb = (T(1.0) / this->q) + this->g;
+            this->ff = T(1.0) / (this->s1fb * this->g + T(1.0));
         }
 
         /**
