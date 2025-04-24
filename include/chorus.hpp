@@ -88,7 +88,7 @@ namespace giml {
          * @brief sets params rate, depth and blend
          * @todo more params
          */
-        void setParams(T rate = 0.20, T depth = 20.0, T blend = 0.5) {
+        void setParams(T rate = 0.2, T depth = 6.0, T blend = 0.5) {
             this->setRate(rate);
             this->setDepth(depth);
             this->setBlend(blend);

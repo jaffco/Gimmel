@@ -69,7 +69,7 @@ namespace giml {
 
             T phase = this->osc.processSample(); 
             float phase2 = phase + 0.5; // mod phase
-            phase2 -= ::floor(phase2); // wrap mod phase
+            phase2 -= floor(phase2); // wrap mod phase
 
             float readIndex = phase * this->windowSize; // readpoint 1 
             float readIndex2 = phase2 * this->windowSize; // readpoint 2
@@ -77,8 +77,8 @@ namespace giml {
             T output = this->buffer.readSample(readIndex); // get sample
             T output2 = this->buffer.readSample(readIndex2); // get sample 2
 
-            T windowOne = ::cosf((phase - 0.5) * M_PI); // gain windowing
-            T windowTwo = ::cosf((phase2 - 0.5) * M_PI);// ^
+            T windowOne = cos((phase - 0.5) * M_PI); // gain windowing
+            T windowTwo = cos((phase2 - 0.5) * M_PI);// ^
             
             T out = output * windowOne + output2 * windowTwo; // windowed output
             return giml::linMix(in, out, this->blend); 
