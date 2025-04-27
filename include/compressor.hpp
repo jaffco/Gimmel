@@ -51,10 +51,10 @@ namespace giml {
             if (2.f * (xG - thresh) < -knee) { // if input < thresh - knee
                 yG = xG;
             } 
-            else if (2.f * ::fabs(xG - thresh) <= knee) { // if input is inside knee
+            else if (2.f * abs(xG - thresh) <= knee) { // if input is inside knee
                 yG = xG + 
                 (1.f / (ratio - 1.f)) *
-                ::powf((xG - thresh) + (knee / 2.f), 2.f) /
+                pow((xG - thresh) + (knee / 2.f), 2.f) /
                 (2.f * knee); // knee needs to be non-zero
             } 
             else if (2.f * (xG - thresh) > knee) { // if input > thresh + knee
@@ -102,8 +102,8 @@ namespace giml {
          * @return `in` with gain reduction and makeup gain applied
          */
         inline T processSample(const T& in) override {
-            if (!(this->enabled)) { return in; }
-
+            if (!this->enabled) { return in; }
+            
             T xG = giml::aTodB(in); // xG
             T yG = computeGain(xG, this->thresh_dB, this->ratio, this->knee_dB); // yG
             T xL = xG - yG; // xL
@@ -179,7 +179,7 @@ namespace giml {
                 printf("Attack time set to pseudo-zero value, supply a positive float/n");
             }
             T timeS = attackMillis * 0.001; // convert to seconds
-            this->aAttack = ::powf( M_E , -1.0 / (timeS * this->sampleRate) );
+            this->aAttack = exp(-1.0 / (timeS * this->sampleRate));
         }
 
         /**
@@ -192,7 +192,7 @@ namespace giml {
                 printf("Release time set to pseudo-zero value, supply a positive float/n");
             }
             float timeS = releaseMillis * 0.001; // convert to seconds
-            this->aRelease = ::powf( M_E , -1.0 / (timeS * this->sampleRate) );
+            this->aRelease = exp(-1.0 / (timeS * this->sampleRate));
         }
     };
 }

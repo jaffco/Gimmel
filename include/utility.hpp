@@ -17,8 +17,8 @@ namespace giml {
      * @param dBVal input value in dB
      * @return input value in amplitude
      */
-    inline float dBtoA(float dBVal) {
-        return ::powf(10.f, dBVal / 20.f);
+    inline float dBtoA(float& dBVal) {
+        return pow(10.f, dBVal * 0.05f);
     }
 
     /**
@@ -28,8 +28,9 @@ namespace giml {
      * @return input value in dB
      */
     inline float aTodB(float ampVal) {
-        if (ampVal == 0) { ampVal += 1e-6; } // prevents nans for input of 0
-        return 20.f * ::log10f(::fabs(ampVal));
+        ampVal = abs(ampVal); // rectify 
+        ampVal = std::max(ampVal, 1e-6f); // prevents nans for input of 0
+        return 20.f * log10(ampVal);
     }
 
     /**
