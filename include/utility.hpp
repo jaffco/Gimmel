@@ -191,6 +191,31 @@ namespace giml {
         bool enabled = false;
     };
 
+    /**
+     * @brief smoothed dB peak detector class
+     * @todo implement the other detectors from Reiss et al, add enum for mode
+     */
+    template <typename T>
+    class dBDetector { 
+    private:
+        T y1last = 0;
+        T yL_last = 0;
+
+    public:
+        /**
+         * @brief implements the decoupled peak detector from Reiss et al. 2011 (Eq. 17)
+         * @param xL input signal in dB
+         * @param alphaA attack coefficient 
+         * @param alphaR release coefficient 
+         * @return `yL`
+         */
+        T operator()(T xL, T aA, T aR) {
+            y1last = std::max(xL, (aR * y1last) + ((T(1.0) - aR) * xL)); // Release
+            yL_last = (aA * yL_last) + ((T(1.0) - aA) * y1last); // Attack
+            return yL_last;
+        }
+    };
+
     template <typename T>
     class Timer {
     protected:
