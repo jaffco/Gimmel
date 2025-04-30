@@ -17,7 +17,7 @@ namespace giml {
      * @param dBVal input value in dB
      * @return input value in amplitude
      */
-    inline float dBtoA(float& dBVal) {
+    inline float dBtoA(float dBVal) {
         return pow(10.f, dBVal * 0.05f);
     }
 

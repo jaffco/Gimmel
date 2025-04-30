@@ -121,19 +121,15 @@ namespace giml {
          * @param r ratio
          */
         void setRatio(T r) {
-            if (r <= 1.0) { 
-                r = 1.0 + 1e-6;
-                printf("Ratio must be greater than 1/n"); // necessary? 
-            }
+            if (r <= 1.0) { r = 1.0 + 1e-6; }
             this->ratio = r;
         }
 
         /**
          * @brief set makeup gain
-         * @param mdB gain value in dB. Clamped to positive value. 
+         * @param mdB gain value in dB.
          */
         void setMakeupGain(T mdB) {
-            if (mdB < 0.f) { mdB = 0.f; }
             this->makeupGain_dB = mdB;
         }
         
@@ -142,10 +138,7 @@ namespace giml {
          * @param widthdB width value in dB
          */
         void setKnee(T widthdB) {
-            if (widthdB <= 0.0) {
-                widthdB = 1e-6;
-                printf("Knee set to pseudo-zero value, supply a positive float/n");
-            }
+            if (widthdB <= 0.0) { widthdB = 1e-6; }
             this->knee_dB = widthdB;
         }
 
@@ -154,10 +147,7 @@ namespace giml {
          * @param attackMillis attack time in milliseconds 
          */
         void setAttack(T attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
-            if (attackMillis <= 0.0) {
-                attackMillis = 1e-6;
-                printf("Attack time set to pseudo-zero value, supply a positive float/n");
-            }
+            if (attackMillis <= 0.0) { attackMillis = 1e-6; }
             T timeS = attackMillis * 0.001; // convert to seconds
             this->aAttack = exp(-1.0 / (timeS * this->sampleRate));
         }
@@ -167,10 +157,7 @@ namespace giml {
          * @param releaseMillis release time in milliseconds 
          */
         void setRelease(T releaseMillis) { // // 
-            if (releaseMillis <= 0.0) {
-                releaseMillis = 1e-6;
-                printf("Release time set to pseudo-zero value, supply a positive float/n");
-            }
+            if (releaseMillis <= 0.0) { releaseMillis = 1e-6; }
             float timeS = releaseMillis * 0.001; // convert to seconds
             this->aRelease = exp(-1.0 / (timeS * this->sampleRate));
         }
