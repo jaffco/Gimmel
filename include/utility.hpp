@@ -8,6 +8,7 @@
 #include <stdlib.h> // For malloc/calloc/free
 #include <cstring> 
 #include <stdexcept>
+#include <complex>
 
 namespace giml {
     /**
@@ -16,8 +17,8 @@ namespace giml {
      * @param dBVal input value in dB
      * @return input value in amplitude
      */
-    float dBtoA(float dBVal) {
-        return ::powf(10.f, dBVal / 20.f);
+    inline float dBtoA(float dBVal) {
+        return pow(10.f, dBVal * 0.05f);
     }
 
     /**
@@ -26,9 +27,10 @@ namespace giml {
      * @param ampVal input value in linear amplitude
      * @return input value in dB
      */
-    float aTodB(float ampVal) {
-        if (ampVal == 0) { ampVal += 1e-6; } // prevents nans for input of 0
-        return 20.f * ::log10f(::fabs(ampVal));
+    inline float aTodB(float ampVal) {
+        ampVal = abs(ampVal); // rectify 
+        ampVal = std::max(ampVal, 1e-6f); // prevents nans for input of 0
+        return 20.f * log10(ampVal);
     }
 
     /**
@@ -38,7 +40,7 @@ namespace giml {
      * @param sampleRate sample rate of your project
      * @return msVal translated to samples
      */
-    float millisToSamples(float msVal, int sampRate) {
+    inline float millisToSamples(float msVal, int sampRate) {
         return msVal * sampRate / 1000.f;
     }
 
@@ -49,7 +51,7 @@ namespace giml {
      * @param sampleRate samplerate of your project
      * @return numSamples translated to milliseconds
      */
-    float samplesToMillis(int numSamples, int sampRate) {
+    inline float samplesToMillis(int numSamples, int sampRate) {
         return numSamples / (float)sampRate * 1000.f;
     }
 
@@ -61,7 +63,7 @@ namespace giml {
      * @return `in1 * (1-mix) + in2 * mix`
      */
     template <typename T>
-    T linMix(T in1, T in2, T mix = 0.5) {
+    inline T linMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
         return in1 * (1-mix) + in2 * mix;
     }
@@ -74,9 +76,18 @@ namespace giml {
      * @return `in1 * cos(mix*M_PI_2) + in2 * sin(mix * M_PI_2)`
      */
     template <typename T>
-    T powMix(T in1, T in2, T mix = 0.5) {
+    inline T powMix(T in1, T in2, T mix = 0.5) {
         mix = (mix < 0) ? 0 : (mix > 1 ? 1 : mix); // clamp to [0, 1]
-        return in1 * std::cos(mix * M_PI_2) + in2 * std::sin(mix * M_PI_2);
+        mix *= M_PI_2;
+
+        // optimized cos/sin computation using Euler's identity
+        // std::complex<T> z = std::polar(T(1.0), mix);
+        // T c = z.real();
+        // T s = z.imag();
+        // return in1 * c + in2 * s;
+
+        // sin/cos to be resolved by math provider 
+        return in1 * cos(mix) + in2 * sin(mix);
     }
 
     /**
@@ -87,7 +98,7 @@ namespace giml {
      * @return clipped input
      */
     template <typename T>
-    T clip(T in, T min, T max) {
+    inline T clip(T in, T min, T max) {
         return (in < min) ? min : (in > max ? max : in);
     }
 
@@ -98,7 +109,7 @@ namespace giml {
      * @return `x / sqrt(x^2 + 1)`
      */
     template <typename T>
-    T biSigmoid(T in) {
+    inline T biSigmoid(T in) {
         return in / ::sqrt(in*in + 1);
     }
 
@@ -111,7 +122,7 @@ namespace giml {
      * @return limited `in`
      */
     template <typename T>
-    T limit(T in, T thresh) {
+    inline T limit(T in, T thresh) {
         T lin = giml::clip(in, -thresh, thresh);
         T nonLin = giml::biSigmoid((in - lin)/(1 - thresh)) * (1 - thresh);
         return lin + nonLin;
@@ -128,14 +139,14 @@ namespace giml {
      * @return num samples needed to reach -60dB
      */
     template <typename T>
-    T t60time(T gVal) {
+    inline T t60time(T gVal) {
         T impulse = 1;
         T counter = 0;
         while (impulse > 2e-10) {
             impulse *= gVal;
             counter++;
         }
-      return counter;
+        return counter;
     }
 
     /**
@@ -149,9 +160,9 @@ namespace giml {
      * @return decay multiplier
      */
     template <typename T>
-    T t60(int numSamps) {
-        T gVal = ::pow(2e-10, 1.f/numSamps);
-      return gVal;
+    inline T t60(T numSamps) {
+        T gVal = ::pow(2e-10, 1.0 / numSamps);
+        return gVal;
     }
 
     /**
@@ -178,6 +189,31 @@ namespace giml {
 
     protected:
         bool enabled = false;
+    };
+
+    /**
+     * @brief smoothed dB peak detector class
+     * @todo implement the other detectors from Reiss et al, add enum for mode
+     */
+    template <typename T>
+    class dBDetector { 
+    private:
+        T y1last = 0;
+        T yL_last = 0;
+
+    public:
+        /**
+         * @brief implements the decoupled peak detector from Reiss et al. 2011 (Eq. 17)
+         * @param xL input signal in dB
+         * @param alphaA attack coefficient 
+         * @param alphaR release coefficient 
+         * @return `yL`
+         */
+        T operator()(T xL, T aA, T aR) {
+            y1last = std::max(xL, (aR * y1last) + ((T(1.0) - aR) * xL)); // Release
+            yL_last = (aA * yL_last) + ((T(1.0) - aA) * y1last); // Attack
+            return yL_last;
+        }
     };
 
     template <typename T>

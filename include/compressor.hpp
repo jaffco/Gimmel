@@ -14,27 +14,7 @@ namespace giml {
         int sampleRate;
         T thresh_dB = 0.f, ratio = 2.f, knee_dB = 1.f, 
         aRelease = 0.f, aAttack = 0.f, makeupGain_dB = 0.f;
-
-        class DetectdB { // encapsulated detector class
-        private:
-            T y1last = 0;
-            T yL_last = 0;
-
-        public:
-            /**
-             * @brief implements the decoupled peak detector from Reiss et al. 2011 (Eq. 17)
-             * @param xL, aA, aR
-             * @return `yL`
-             */
-            T process(T xL, T aA, T aR) {
-                T y1 = std::max(xL, (aR * this->y1last) + ((1.f - aR) * xL)); // max (in, filt(in))
-                this->y1last = y1;
-                T yL = (aA * this->yL_last) + ((1 - aA) * y1);
-                this->yL_last = yL;
-                return yL;
-            }
-        };
-        DetectdB detector; // member instance of detector class
+        dBDetector<T> detector; // dB detector
 
     protected: 
         /**
@@ -46,15 +26,15 @@ namespace giml {
          * @return `yG` 
          */
         float computeGain(float xG, float thresh, float ratio, float knee) {
-            float yG = 1.f;
+            float yG = xG;
             // calculate yG
             if (2.f * (xG - thresh) < -knee) { // if input < thresh - knee
                 yG = xG;
             } 
-            else if (2.f * ::fabs(xG - thresh) <= knee) { // if input is inside knee
+            else if (2.f * abs(xG - thresh) <= knee) { // if input is inside knee
                 yG = xG + 
                 (1.f / (ratio - 1.f)) *
-                ::powf((xG - thresh) + (knee / 2.f), 2.f) /
+                pow((xG - thresh) + (knee / 2.f), 2.f) /
                 (2.f * knee); // knee needs to be non-zero
             } 
             else if (2.f * (xG - thresh) > knee) { // if input > thresh + knee
@@ -102,12 +82,12 @@ namespace giml {
          * @return `in` with gain reduction and makeup gain applied
          */
         inline T processSample(const T& in) override {
-            if (!(this->enabled)) { return in; }
-
+            if (!this->enabled) { return in; }
+            
             T xG = giml::aTodB(in); // xG
             T yG = computeGain(xG, this->thresh_dB, this->ratio, this->knee_dB); // yG
             T xL = xG - yG; // xL
-            T yL = this->detector.process(xL, this->aAttack, this->aRelease); // yL
+            T yL = this->detector(xL, this->aAttack, this->aRelease); // yL
             T cdB = this->makeupGain_dB - yL; // cdB = M - yL
 
             T gain = giml::dBtoA(cdB); // lin()
@@ -141,19 +121,15 @@ namespace giml {
          * @param r ratio
          */
         void setRatio(T r) {
-            if (r <= 1.0) { 
-                r = 1.0 + 1e-6;
-                printf("Ratio must be greater than 1/n"); // necessary? 
-            }
+            if (r <= 1.0) { r = 1.0 + 1e-6; }
             this->ratio = r;
         }
 
         /**
          * @brief set makeup gain
-         * @param mdB gain value in dB. Clamped to positive value. 
+         * @param mdB gain value in dB.
          */
         void setMakeupGain(T mdB) {
-            if (mdB < 0.f) { mdB = 0.f; }
             this->makeupGain_dB = mdB;
         }
         
@@ -162,10 +138,7 @@ namespace giml {
          * @param widthdB width value in dB
          */
         void setKnee(T widthdB) {
-            if (widthdB <= 0.0) {
-                widthdB = 1e-6;
-                printf("Knee set to pseudo-zero value, supply a positive float/n");
-            }
+            if (widthdB <= 0.0) { widthdB = 1e-6; }
             this->knee_dB = widthdB;
         }
 
@@ -174,12 +147,9 @@ namespace giml {
          * @param attackMillis attack time in milliseconds 
          */
         void setAttack(T attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
-            if (attackMillis <= 0.0) {
-                attackMillis = 1e-6;
-                printf("Attack time set to pseudo-zero value, supply a positive float/n");
-            }
+            if (attackMillis <= 0.0) { attackMillis = 1e-6; }
             T timeS = attackMillis * 0.001; // convert to seconds
-            this->aAttack = ::powf( M_E , -1.0 / (timeS * this->sampleRate) );
+            this->aAttack = exp(-1.0 / (timeS * this->sampleRate));
         }
 
         /**
@@ -187,12 +157,9 @@ namespace giml {
          * @param releaseMillis release time in milliseconds 
          */
         void setRelease(T releaseMillis) { // // 
-            if (releaseMillis <= 0.0) {
-                releaseMillis = 1e-6;
-                printf("Release time set to pseudo-zero value, supply a positive float/n");
-            }
+            if (releaseMillis <= 0.0) { releaseMillis = 1e-6; }
             float timeS = releaseMillis * 0.001; // convert to seconds
-            this->aRelease = ::powf( M_E , -1.0 / (timeS * this->sampleRate) );
+            this->aRelease = exp(-1.0 / (timeS * this->sampleRate));
         }
     };
 }

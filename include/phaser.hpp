@@ -3,10 +3,11 @@
 #include "utility.hpp"
 #include "oscillator.hpp"
 #include "filter.hpp"
+#include <vector>
 
 namespace giml {
     /**
-     * @brief This class implements a basic phaser effect (BROKEN)
+     * @brief This class implements a basic phaser effect
      * @tparam T floating-point type for input and output sample data such as `float`, `double`, or `long double`,
      * up to user what precision they are looking for (float is more performant)
      * @todo depth control (variable number of stages)
@@ -20,13 +21,17 @@ namespace giml {
         T rate = 0.0, feedback = 0.0, last = 0.0;
         giml::TriOsc<T> osc;
         giml::DynamicArray<giml::SVF<T>> filterbank;
+        giml::DynamicArray<T> centerFreqs;
 
     public:
         // Constructor
         Phaser() = delete;
         Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
             for (size_t stage = 0; stage < numStages; stage++) {
-                filterbank.pushBack(giml::SVF<T>());
+                filterbank.pushBack(giml::SVF<T>(samprate));
+
+                // TODO: logarithmic frequency spacing
+                centerFreqs.pushBack( (this->sampleRate * 0.25) / (2.0 * (numStages - stage)) ); 
             }
             this->setParams();
         }
@@ -44,6 +49,7 @@ namespace giml {
             this->last = p.last;
             this->osc = p.osc;
             this->filterbank = p.filterbank;
+            this->centerFreqs = p.centerFreqs;
         }
 
         // Copy assignment operator 
@@ -56,6 +62,7 @@ namespace giml {
             this->last = p.last;
             this->osc = p.osc;
             this->filterbank = p.filterbank;
+            this->centerFreqs = p.centerFreqs;
             return *this;
         }
 
@@ -63,21 +70,24 @@ namespace giml {
          * @brief 
          * @param in current sample
          * @return mix of current input and last output with time-varying comb filter
+         * @todo optimize SVF.setParams() call
          */
         inline T processSample(const T& in) {
-            last = giml::powMix<T>(in, last, this->feedback);
+
+            last = giml::linMix<T>(in, last, this->feedback);
+            if (!this->enabled) { return in; }
             T mod = osc.processSample();
 
             // pass through filterbank to create phase distortion
             for (size_t stage = 0; stage < numStages; stage++) {
-                T Fc = (this->sampleRate * 0.25) / (2.0 * (numStages - stage)); // should store these
-                this->filterbank[stage].setParams(Fc + mod * (Fc * 0.5), 2.0, sampleRate); // set cutoff frequency
-                this->filterbank[stage](last); // update filter state
-                last = this->filterbank[stage].allPass();
+                auto& f = this->filterbank[stage];
+                auto& Fc = this->centerFreqs[stage];
+                f.setParams(Fc + mod * (Fc * 0.5), 2.0, sampleRate); // set cutoff frequency !! CPU heavy !!
+                f.operator()(last); // update filter state
+                last = f.allPass();
             }
 
-            last = giml::powMix<T>(in, last); // combine with input to create comb filter effect
-            if (!this->enabled) { return in; }
+            last = giml::linMix<T>(in, last); // combine with input to create comb filter effect
             return last; 
         }
 
