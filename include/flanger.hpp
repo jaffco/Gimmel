@@ -17,7 +17,9 @@ namespace giml {
     class Flanger : public Effect<T> {
     private:
         int sampleRate;
-        T rate = 0.0, depth = 0.0, blend = 0.0;
+        Param<T> rate { "rate" };
+        Param<T> depth { "depth" };
+        Param<T> blend { "blend" };
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
 
@@ -32,16 +34,25 @@ namespace giml {
          * See Effect Design Part II - Jon Dattorro 1997 Table 7 
          */
         Flanger (int samprate, T maxDepthMillis = 10.0) : sampleRate(samprate), osc(samprate) {
-            this->buffer.allocate(giml::millisToSamples(maxDepthMillis, samprate)); // max delay is 10ms
-            this->setParams();
+            this->rate = Param<T>("rate", 0.2, 0.0, 20.0);
+            this->osc.setFrequency(this->rate());
+            this->params.push_back(&this->rate);
+            
+            T maxDepthSamples = giml::millisToSamples(maxDepthMillis, samprate);
+            this->depth = Param<T>("depth", giml::millisToSamples(5.0, samprate), 0.0, maxDepthSamples);
+            this->params.push_back(&this->depth);
+            
+            this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
+            this->params.push_back(&this->blend);
+            
+            this->buffer.allocate(maxDepthSamples); // max delay is 10ms
         }
 
         // Destructor
         ~Flanger() {}
 
         // Copy constructor
-        Flanger(const Flanger<T>& f) {
-            this->enabled = f.enabled;
+        Flanger(const Flanger<T>& f) : Effect<T>(f) {
             this->sampleRate = f.sampleRate;
             this->rate = f.rate;
             this->depth = f.depth;
@@ -52,7 +63,7 @@ namespace giml {
 
         // Copy assignment operator 
         Flanger<T>& operator=(const Flanger<T>& f) {
-            this->enabled = f.enabled;
+            Effect<T>::operator=(f);
             this->sampleRate = f.sampleRate;
             this->rate = f.rate;
             this->depth = f.depth;
@@ -75,9 +86,9 @@ namespace giml {
             if (!this->enabled) { return in; }
 
             // y[n] = x[n] + x[depth + osc_n * depth]
-            float readIndex = this->depth + this->osc.processSample() * this->depth;
+            float readIndex = this->depth() + this->osc.processSample() * this->depth();
             T output = this->buffer.readSample(readIndex);
-            return giml::powMix<T>(in, output, this->blend); // return mix
+            return giml::powMix<T>(in, output, this->blend()); // return mix
         }
 
         /**
@@ -94,7 +105,8 @@ namespace giml {
          * @param freq frequency in Hz 
          */
         void setRate(T freq) { 
-          this->osc.setFrequency(freq); 
+            this->rate = freq;
+            this->osc.setFrequency(freq); 
         }
 
         /**
@@ -115,7 +127,7 @@ namespace giml {
          * @param b ratio of wet to dry (clamped to [0,1])
          */
         void setBlend(T b) { 
-            this->blend = giml::clip<T>(b, 0.f, 1.f);
+            this->blend = b;
         }
 
     };

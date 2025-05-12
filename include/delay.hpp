@@ -13,7 +13,10 @@ namespace giml {
     class Delay : public Effect<T> {
     private:
         int sampleRate;
-        T feedback = 0.3, delayTime = 398.0, blend = 0.5, damping = 0.5;
+        Param<T> feedback { "feedback" };
+        Param<T> delayTime { "delayTime" };
+        Param<T> blend { "blend" };
+        Param<T> damping { "damping" };
         giml::OnePole<T> loPass; // loPass filter for damping
         giml::OnePole<T> dcBlock; // See Generating Sound & Organizing Time I - Wakefield and Taylor 2022 Chapter 7 pg. 204
         giml::CircularBuffer<T> buffer; // circular buffer to store past  values
@@ -22,8 +25,20 @@ namespace giml {
         // Constructor
         Delay() = delete;
         Delay(int samprate, T maxDelayMillis = 3000) : sampleRate(samprate) {
+            this->feedback = Param<T>("feedback", 0.3, 0.0, 1.0);
+            this->params.push_back(&this->feedback);
+            
+            this->delayTime = Param<T>("delayTime", 398.0, 0.0, maxDelayMillis);
+            this->params.push_back(&this->delayTime);
+            
+            this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
+            this->params.push_back(&this->blend);
+            
+            this->damping = Param<T>("damping", 0.5, 0.0, 1.0);
+            this->params.push_back(&this->damping);
+
             this->buffer.allocate(giml::millisToSamples(maxDelayMillis, samprate)); // max delayTime is 3 seconds
-            this->loPass.setG(this->damping); // set damping 
+            this->loPass.setG(this->damping()); // set damping 
             this->dcBlock.setCutoff(3.0, samprate);// set dcBlock at 3Hz
         }
 
@@ -31,8 +46,7 @@ namespace giml {
         ~Delay() {}
 
         // Copy constructor
-        Delay(const Delay<T>& d) {
-            this->enabled = d.enabled;
+        Delay(const Delay<T>& d) : Effect<T>(d) {
             this->sampleRate = d.sampleRate;
             this->feedback = d.feedback;
             this->delayTime = d.delayTime;
@@ -45,7 +59,7 @@ namespace giml {
 
         // Copy assignment operator 
         Delay<T>& operator=(const Delay<T>& d) {
-            this->enabled = d.enabled;
+            Effect<T>::operator=(d);
             this->sampleRate = d.sampleRate;
             this->feedback = d.feedback;
             this->delayTime = d.delayTime;
@@ -64,12 +78,12 @@ namespace giml {
          */
         inline T processSample(const T& in) {
             // calling `millisToSamples` every sample is not performant 
-            T readIndex = millisToSamples(this->delayTime, this->sampleRate); // calculate read index
+            T readIndex = millisToSamples(this->delayTime(), this->sampleRate); // calculate read index
             T y_0 = loPass.lpf(this->buffer.readSample(readIndex)); // read from buffer and loPass
-            this->buffer.writeSample(this->dcBlock.hpf(in + giml::limit<T>(y_0 * this->feedback, 0.75))); // write sample to delay buffer
+            this->buffer.writeSample(this->dcBlock.hpf(in + giml::limit<T>(y_0 * this->feedback(), 0.75))); // write sample to delay buffer
 
           if (!(this->enabled)) { return in; } 
-          return giml::linMix<float>(in, y_0, this->blend); // return wet/dry mix
+          return giml::linMix<float>(in, y_0, this->blend()); // return wet/dry mix
         }
 
         /**
@@ -103,15 +117,16 @@ namespace giml {
          * @param a damping value. Clipped to `[0,1]`
          */
         void setDamping(T a) { 
-            this->damping = giml::clip<T>(a, 0, 1);;
-            this->loPass.setG(this->damping);
+            this->loPass.setG(this->damping());
         }
 
         /**
          * @brief Set blend (linear)
          * @param gWet percentage of wet to blend in. Clipped to `[0,1]`
          */
-        void setBlend(T gWet) { this->blend = giml::clip<T>(gWet, 0, 1); }
+        void setBlend(T gWet) { 
+            this->blend = gWet; 
+        }
 
         /**
          * @brief Set feedback gain based on a t60 time value  
@@ -119,7 +134,7 @@ namespace giml {
          */
         void setFeedback_t60(T timeMillis) {
             T normalizedDecay = millisToSamples(timeMillis, this->sampleRate) / 
-            millisToSamples(this->delayTime, this->sampleRate);
+            millisToSamples(this->delayTime(), this->sampleRate);
             this->feedback = giml::t60<T>(static_cast<int>(::round(normalizedDecay)));
         }
 

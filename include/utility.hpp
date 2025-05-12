@@ -9,6 +9,7 @@
 #include <cstring> 
 #include <stdexcept>
 #include <complex>
+#include <string>
 
 namespace giml {
     /**
@@ -165,14 +166,109 @@ namespace giml {
         return gVal;
     }
 
+    template <typename T>
+    struct Param {
+        enum TYPE : unsigned int {
+            CONTINUOUS = 0,
+            CHOICE = 1,
+            BOOL = 2
+        };
+
+        T def, min, max, current;
+        TYPE type;
+        std::string name;
+
+        Param() = delete;
+        Param(
+            std::string name, 
+            T def = 0.0, 
+            T min = 0.0, 
+            T max = 0.0, 
+            TYPE type = CONTINUOUS 
+        ) {
+            this->name = name;
+            this->type = type;
+            this->def = def;
+            this->min = min;
+            this->max = max;
+            this->current = def;
+        }
+
+        // Copy Contructor
+        Param(const Param& p) {
+            this->name = p.name;
+            this->type = p.type;
+            this->current = p.current;
+            this->def = p.def;
+            this->min = p.min;
+            this->max = p.max;
+            this->def = p.def;
+        }
+        
+        // Copy assignment constructor
+        Param& operator=(const Param& p) {
+            this->name = p.name;
+            this->type = p.type;
+            this->current = p.current;
+            this->def = p.def;
+            this->min = p.min;
+            this->max = p.max;
+            this->def = p.def;
+            return *this;
+        }
+
+        // Operator overload to get current value
+        T operator()() { return this->current; }
+
+        // Operator overload to set current value with type-specific behavior
+        void operator=(T val) {
+            switch (this->type) {
+                case TYPE::CONTINUOUS:
+                    // Standard clamping for continuous values
+                    if (val < this->min) { val = this->min; }
+                    if (val > this->max) { val = this->max; }
+                    this->current = val;
+                    break;
+
+                case TYPE::CHOICE:
+                    // Round to nearest integer for discrete values
+                    if (val < this->min) { val = this->min; }
+                    if (val > this->max) { val = this->max; }
+                    this->current = round(val);
+                    break;
+
+                case TYPE::BOOL:
+                    // Convert to boolean (0.0 or 1.0)
+                    this->current = val > 0.5 ? 1.0 : 0.0;
+                    break;
+            }
+        }
+    };
+
     /**
      * @brief Effect class that implements a toggle switch (disabled by default)
+     * @todo copy constructor / assignment operator to call in derived classes
      */
     template <typename T>
     class Effect {
     public:
         Effect() {}
         virtual ~Effect() {}
+
+        // Copy constructor
+        Effect(const Effect& other) {
+            this->enabled = other.enabled;
+            this->params = other.params;
+        }
+
+        // Copy assignment operator
+        Effect& operator=(const Effect& other) {
+            if (this != &other) {
+                this->enabled = other.enabled;
+                this->params = other.params;
+            }
+            return *this;
+        }
 
         // `enable()`/`disable()` soon to be deprecated
         virtual void enable() { this->enabled = true; } 
@@ -187,8 +283,19 @@ namespace giml {
 
         virtual inline T processSample(const T& in) { return in; }
 
+        inline void setParam(const std::string& name, T value) {
+            for (auto* p : this->params) {
+                if (p->name == name) {  // Compare strings directly
+                    *p = value;         // Assign using operator= of Param
+                }
+            }
+        }
+
+        inline std::vector<Param<T>*> getParams() { return this->params; }
+
     protected:
         bool enabled = false;
+        std::vector<Param<T>*> params; // should use std::map?
     };
 
     /**

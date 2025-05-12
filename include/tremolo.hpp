@@ -13,22 +13,27 @@ namespace giml {
     class Tremolo : public Effect<T> {
     private:
         int sampleRate;
-        T speed = 1000.0, depth = 1.0;
+        Param<T> speed { "speed" };
+        Param<T> depth { "depth" };
         giml::SinOsc<T> osc;
 
     public:
         // Constructor
         Tremolo() = delete;
         Tremolo (int samprate) : sampleRate(samprate), osc(samprate) {
-            this->osc.setFrequency(1000.0 / this->speed);
+            this->speed = Param<T>("speed", 1000.0, 50.0, 5000.0);
+            this->osc.setFrequency(1000.0 / this->speed());
+            this->params.push_back(&this->speed);
+
+            this->depth = Param<T>("depth", 1.0, 0.0, 1.0);
+            this->params.push_back(&this->depth);
         }
 
         // Destructor
         ~Tremolo() {}
 
         // Copy constructor
-        Tremolo(const Tremolo<T>& t) {
-            this->enabled = t.enabled;
+        Tremolo(const Tremolo<T>& t) : Effect<T>(t) {
             this->sampleRate = t.sampleRate;
             this->speed = t.speed;
             this->depth = t.depth;
@@ -37,7 +42,7 @@ namespace giml {
 
         // Copy assignment operator 
         Tremolo<T>& operator=(const Tremolo<T>& t) {
-            this->enabled = t.enabled;
+            Effect<T>::operator=(t);
             this->sampleRate = t.sampleRate;
             this->speed = t.speed;
             this->depth = t.depth;
@@ -53,7 +58,7 @@ namespace giml {
         inline T processSample(const T& in) {
             if (!this->enabled) { return in; }
             T gain = this->osc.processSample() * 2 - 1; // waveshape SinOsc output to make it unipolar
-            gain *= this->depth; // scale by depth
+            gain *= this->depth(); // scale by depth
             return in * (1 - gain); // return in * waveshaped SinOsc 
         }
 
@@ -72,7 +77,7 @@ namespace giml {
         void setSpeed(T millisPerCycle) { // set speed of LFO
             if (millisPerCycle < 0.05) { millisPerCycle = 0.05; } // osc frequency ceiling at 20kHz to avoid aliasing
             this->speed = millisPerCycle;
-            this->osc.setFrequency(1000.0 / this->speed); // convert to Hz (milliseconds to seconds)
+            this->osc.setFrequency(1000.0 / this->speed()); // convert to Hz (milliseconds to seconds)
         }
 
         /**
@@ -80,7 +85,7 @@ namespace giml {
          * @param d modulation depth (clamped to [0,1])
          */
         void setDepth(T d) { // set depth
-            this->depth = giml::clip<T>(d, 0, 1);
+            this->depth = d;
         }
     };
 }

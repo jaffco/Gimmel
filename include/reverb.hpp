@@ -17,11 +17,12 @@ namespace giml {
     class Reverb : public Effect<T> {
     private:
         // The user-defined parameters
-        float param__time = 0.f; //Controls D for delay lines (in ms)
-        float param__regen = 0.f; //controls LPF feedback gains for Comb Filter
-        float param__damping = 0.f; //controls feedback loop gains for APF
-        float param__length = 1.f; // controls volume of room and decay time of signal
-        float param__blend = 0.5f;
+        Param<T> param__time { "time" };
+        Param<T> param__regen { "regen" };
+        Param<T> param__damping { "damping" };
+        Param<T> param__length { "length" };
+        Param<T> param__blend { "blend" };
+        Param<T> param__room { "room" };
 
         int sampleRate;
 
@@ -55,6 +56,24 @@ namespace giml {
         Reverb() = delete;
         Reverb(int sampleRate, int numBeforeAPFs = 2, int numCombFilters = 20, int numAfterAPFs = 2, int APFNestingDepth = 2) : sampleRate(sampleRate),
         numBeforeAPFs(numBeforeAPFs), numCombFilters(numCombFilters), numAfterAPFs(numAfterAPFs) {
+            this->param__time = Param<T>("time", 0.0, 0.0, 10.0);
+            this->params.push_back(&this->param__time);
+            
+            this->param__regen = Param<T>("regen", 0.0, 0.0, 0.999);
+            this->params.push_back(&this->param__regen);
+            
+            this->param__damping = Param<T>("damping", 0.0, 0.0, 1.0);
+            this->params.push_back(&this->param__damping);
+            
+            this->param__length = Param<T>("length", 1.0, 0.1, 100.0);
+            this->params.push_back(&this->param__length);
+            
+            this->param__blend = Param<T>("blend", 0.5, 0.0, 1.0);
+            this->params.push_back(&this->param__blend);
+
+            this->param__room = Param<T>("room", 1.0, 0.0, 4.0, Param<T>::CHOICE);
+            this->params.push_back(&this->param__room);
+            
             for (int i = 0; i < numBeforeAPFs; i++) {
                 this->beforeAPFs.pushBack(this->createNestedAPF(sampleRate, APFNestingDepth)); //Let's try nesting depth of 1 first
             }
@@ -72,13 +91,15 @@ namespace giml {
         }
 
         // Copy constructor
-        Reverb(const Reverb<T>& r) {
+        Reverb(const Reverb<T>& r) : Effect<T>(r) {
             this->sampleRate = r.sampleRate;
 
             this->param__time = r.param__time;
             this->param__regen = r.param__regen;
             this->param__length = r.param__length;
             this->param__damping = r.param__damping;
+            this->param__blend = r.param__blend;
+            this->param__room = r.param__room;
 
             this->numCombFilters = r.numCombFilters;
             this->numBeforeAPFs = r.numBeforeAPFs;
@@ -92,12 +113,15 @@ namespace giml {
 
         // Copy assignment constructor
         Reverb<T>& operator=(const Reverb<T>& r) {
+            Effect<T>::operator=(r);
             this->sampleRate = r.sampleRate;
             
             this->param__time = r.param__time;
             this->param__regen = r.param__regen;
             this->param__length = r.param__length;
             this->param__damping = r.param__damping;
+            this->param__blend = r.param__blend;
+            this->param__room = r.param__room;
 
             this->numCombFilters = r.numCombFilters;
             this->numBeforeAPFs = r.numBeforeAPFs;
@@ -205,7 +229,7 @@ namespace giml {
                 }
             }
 
-            return giml::powMix(in, summedValue, this->param__blend);
+            return giml::powMix(in, summedValue, this->param__blend());
         }
 
     private:
@@ -296,7 +320,6 @@ namespace giml {
          * @param g [0, 1) (non-inclusive because we need gain to be decaying for BIBO stability)
          */
         inline void setDamping(float g) { // [0, 1)
-            g = giml::clip<float>(g, 0, 0.97f);
             this->param__damping = g;
             for (auto& apf : this->beforeAPFs) { apf->setLPFFeedbackGain(g); }
             for (auto& apf : this->afterAPFs) { apf->setLPFFeedbackGain(g); }
@@ -306,7 +329,7 @@ namespace giml {
          * @brief Set blend 
          * @param b ratio of wet to dry (clamped to [0,1])
          */
-        void setBlend(T b) { this->param__blend = giml::clip<T>(b, 0.0, 1.0); }
+        void setBlend(T b) { this->param__blend = b; }
 
         /**
          * @brief Takes a feedback gain coefficient and sets the parameter for all the comb filters
@@ -314,7 +337,6 @@ namespace giml {
          * @param regen [0, 1) (non-inclusive because we need gain to be decaying for BIBO stability)
          */
         inline void setRegen(float regen) { // [0, 1) (non-inclusive because we need gain to be decaying for BIBO stability)
-            regen = giml::clip<float>(regen, 0, 0.999);
             this->param__regen = regen;
 
             // Recalculate the g value from RT-60 and new damping
@@ -345,8 +367,8 @@ namespace giml {
          * @param customRoom If you set CUSTOM in the previous field, you must specify a pointer to your custom room object so that we can properly calculate the proper feedback coefficients
          */
         inline void setRoom(float length, float absorptionCoefficient = 0.75f, RoomType type = RoomType::SPHERE) {
+            this->param__room = type;
             //Length in feet (ft)
-            if (length < 0) { length = 0; }
             this->param__length = length;
             // recalculate the RT-60 decay time and the comb filter gains
 
