@@ -6,6 +6,7 @@
 #include "expander.hpp"
 #include "filter.hpp"
 #include "flanger.hpp"
+#include "looper.hpp"
 #include "oscillator.hpp"
 #include "phaser.hpp"
 #include "reverb.hpp"
