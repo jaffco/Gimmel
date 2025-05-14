@@ -162,7 +162,7 @@ namespace giml {
         void setAttack(T attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
             if (attackMillis <= 0.0) { attackMillis = 1e-6; }
             T timeS = attackMillis * 0.001; // convert to seconds
-            constexpr float log109 = log10(9);
+            constexpr float log109 = 0.9542425094393249f;
             this->aAttack = exp(-log109 / (timeS * this->sampleRate));
         }
 
@@ -173,7 +173,7 @@ namespace giml {
         void setRelease(T releaseMillis) { // // 
             if (releaseMillis <= 0.0) { releaseMillis = 1e-6; }
             T timeS = releaseMillis * 0.001; // convert to seconds
-            constexpr float log109 = log10(9);
+            constexpr float log109 = 0.9542425094393249f;
             this->aRelease = exp(-log109 / (timeS * this->sampleRate));
         }
     };
