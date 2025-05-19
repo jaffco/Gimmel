@@ -42,6 +42,8 @@ namespace giml {
                 // TODO: logarithmic frequency spacing
                 centerFreqs.pushBack( (this->sampleRate * 0.25) / (2.0 * (numStages - stage)) ); 
             }
+
+            this->updateParams();
         }
 
         // Destructor
@@ -104,6 +106,10 @@ namespace giml {
         void setParams(const T& rate = 0.5, const T& feedback = 0.85) {
             this->setRate(rate);
             this->setFeedback(feedback);
+        }
+
+        void updateParams() {
+            this->setParams(this->rate(), this->feedback());
         }
 
         /**

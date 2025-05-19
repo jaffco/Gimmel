@@ -287,9 +287,13 @@ namespace giml {
             for (auto* p : this->params) {
                 if (p->name == name) {  // Compare strings directly
                     *p = value;         // Assign using operator= of Param
+                    return; // return once param is found 
                 }
             }
+            std::cout << "Param " << name.c_str() << " not found!" << std::endl;
         }
+
+        inline virtual void updateParams() {}
 
         inline std::vector<Param<T>*> getParams() { return this->params; }
 

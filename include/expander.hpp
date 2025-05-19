@@ -13,11 +13,13 @@ namespace giml {
     class Expander : public Effect<T> {
     private:
         int sampleRate;
+        T aAttack = 0.0; // attack coefficient
+        T aRelease = 0.0; // release coefficient
         Param<T> thresh_dB { "threshold" };
         Param<T> ratio { "ratio" };
         Param<T> knee_dB { "knee" };
-        Param<T> aRelease { "release" };
-        Param<T> aAttack { "attack" };
+        Param<T> attackMillis { "attackMillis" };
+        Param<T> releaseMillis { "releasMillis" };
         Param<T> sideChainEnabled { "sideChainEnabled" };
         dBDetector<T> detector; // dB detector
         T sideChainLastIn = 0.0;
@@ -67,18 +69,16 @@ namespace giml {
             this->knee_dB = Param<T>("knee", 2.0, 0.001, 10.0);
             this->params.push_back(&this->knee_dB);
             
-            this->aAttack = Param<T>("attack", 0.0, 0.0, 0.999);  // Coefficient value
-            this->params.push_back(&this->aAttack);
+            this->attackMillis = Param<T>("attackMillis", 3.5, 0.0, 100);
+            this->params.push_back(&this->attackMillis);
             
-            this->aRelease = Param<T>("release", 0.0, 0.0, 0.999);  // Coefficient value
-            this->params.push_back(&this->aRelease);
+            this->releaseMillis = Param<T>("releaseMillis", 100, 0.0, 300);  
+            this->params.push_back(&this->releaseMillis);
 
             this->sideChainEnabled = Param<T>("sideChainEnabled", 0.0, 0.0, 1.0, Param<T>::BOOL);
             this->params.push_back(&this->sideChainEnabled);
             
-            // Initialize attack/release coefficients
-            this->setAttack(3.5);  // Default 3.5ms attack
-            this->setRelease(100.0);  // Default 100ms release
+            this->updateParams();
         }
         
         // Destructor
@@ -92,6 +92,8 @@ namespace giml {
             knee_dB(c.knee_dB),
             aRelease(c.aRelease),
             aAttack(c.aAttack),
+            attackMillis(c.attackMillis),
+            releaseMillis(c.releaseMillis),
             detector(c.detector), // Copy detector state
             sideChainEnabled(c.sideChainEnabled),
             sideChainLastIn(c.sideChainLastIn)
@@ -104,6 +106,8 @@ namespace giml {
             this->thresh_dB = c.thresh_dB;
             this->ratio = c.ratio;
             this->knee_dB = c.knee_dB;
+            this->attackMillis = c.attackMillis;
+            this->releaseMillis = c.releaseMillis;
             this->aAttack = c.aAttack;
             this->aRelease = c.aRelease;
             this->detector = c.detector; // Assign detector state
@@ -116,7 +120,7 @@ namespace giml {
             T x_dB = giml::aTodB(in); // x_dB (convert input to log domain)
             T x_sc = computeGain(x_dB, this->thresh_dB(), this->ratio(), this->knee_dB()); // x_sc (target gain from input)
             T g_c = x_sc - x_dB; // xL (calculate difference from target gain)
-            T g_s = this->detector(g_c, this->aAttack(), this->aRelease()); // g_s (smoothing of output gain)
+            T g_s = this->detector(g_c, this->aAttack, this->aRelease); // g_s (smoothing of output gain)
             T gain = giml::dBtoA(g_s); // lin()
             return gain;
         }
@@ -153,6 +157,11 @@ namespace giml {
             this->setKnee(knee);
             this->setAttack(attack);
             this->setRelease(release);
+        }
+
+        void updateParams() override {
+            this->setParams(this->thresh_dB(), this->ratio(), this->knee_dB(),
+                            this->attackMillis(), this->releaseMillis());
         }
 
         /**

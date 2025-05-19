@@ -56,22 +56,22 @@ namespace giml {
         Reverb() = delete;
         Reverb(int sampleRate, int numBeforeAPFs = 2, int numCombFilters = 20, int numAfterAPFs = 2, int APFNestingDepth = 2) : sampleRate(sampleRate),
         numBeforeAPFs(numBeforeAPFs), numCombFilters(numCombFilters), numAfterAPFs(numAfterAPFs) {
-            this->param__time = Param<T>("time", 0.0, 0.0, 10.0);
+            this->param__time = Param<T>("time", 0.02, 0.0, 10.0);
             this->params.push_back(&this->param__time);
             
-            this->param__regen = Param<T>("regen", 0.0, 0.0, 0.999);
+            this->param__regen = Param<T>("regen", 0.5, 0.0, 0.999);
             this->params.push_back(&this->param__regen);
             
-            this->param__damping = Param<T>("damping", 0.0, 0.0, 1.0);
+            this->param__damping = Param<T>("damping", 0.5, 0.0, 1.0);
             this->params.push_back(&this->param__damping);
             
-            this->param__length = Param<T>("length", 1.0, 0.1, 100.0);
+            this->param__length = Param<T>("length", 5.0, 0.1, 100.0);
             this->params.push_back(&this->param__length);
             
             this->param__blend = Param<T>("blend", 0.5, 0.0, 1.0);
             this->params.push_back(&this->param__blend);
 
-            this->param__room = Param<T>("room", 1.0, 0.0, 4.0, Param<T>::CHOICE);
+            this->param__room = Param<T>("room", 0.0, 0.0, 4.0, Param<T>::CHOICE);
             this->params.push_back(&this->param__room);
             
             for (int i = 0; i < numBeforeAPFs; i++) {
@@ -87,6 +87,8 @@ namespace giml {
             for (int i = 0; i < numAfterAPFs; i++) {
                 this->afterAPFs.pushBack(this->createNestedAPF(sampleRate, 2));
             }
+
+            this->updateParams();
             
         }
 
@@ -168,6 +170,10 @@ namespace giml {
             virtual T getVolume() = 0;
             virtual T getSurfaceArea() = 0;
         };
+
+        void updateParams() override {
+            this->setParams(this->param__time(), this->param__regen(), this->param__damping(), this->param__blend(), this->param__length(), this->param__room());
+        }
 
 
         /**
@@ -279,7 +285,7 @@ namespace giml {
             //Comb Filter Delay Indices
             float* delayIndices = (float*)calloc(this->numCombFilters, sizeof(float));
             //int delayIndices[this->numCombFilters] = {0};
-            delayIndices[0] = this->sampleRate * this->param__time; //They give us max
+            delayIndices[0] = this->sampleRate * this->param__time(); //They give us max
             delayIndices[this->numCombFilters - 1] = delayIndices[0] / 1.5f; //We know min because of the ratio restriction
             float division = M_PI_4 / (this->numCombFilters - 1); // (pi/4)/number of intermediate comb filters we have left
             for (int i = 1; i < this->numCombFilters - 1; i++) { //Fill in the rest of the comb filters, order does not matter
@@ -296,7 +302,7 @@ namespace giml {
             int totalAPFs = this->numBeforeAPFs + this->numAfterAPFs;
             if (totalAPFs > 0) { //If we have any APFs to begin with
                 delayIndices = (float*)calloc(totalAPFs, sizeof(float));
-                delayIndices[0] = (this->sampleRate * this->param__time)/3; //They give us max
+                delayIndices[0] = (this->sampleRate * this->param__time())/3; //They give us max
                 delayIndices[totalAPFs - 1] = delayIndices[0] / 1.5f; //We know min because of the ratio restriction
                 float division = M_PI_4 / (totalAPFs - 1); // (pi/4)/number of intermediate comb filters we have left
                 for (int i = 1; i < totalAPFs - 1; i++) { //Fill in the rest of the comb filters, order does not matter
@@ -367,7 +373,7 @@ namespace giml {
          * @param customRoom If you set CUSTOM in the previous field, you must specify a pointer to your custom room object so that we can properly calculate the proper feedback coefficients
          */
         inline void setRoom(float length, float absorptionCoefficient = 0.75f, RoomType type = RoomType::SPHERE) {
-            this->param__room = type;
+            this->param__room = static_cast<float>(type);
             //Length in feet (ft)
             this->param__length = length;
             // recalculate the RT-60 decay time and the comb filter gains

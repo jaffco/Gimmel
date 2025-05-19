@@ -16,10 +16,10 @@ namespace giml {
     class Chorus : public Effect<T> {
     private:
         int sampleRate;
+        T offset, depth;
         Param<T> rate { "rate" };
-        Param<T> depth { "depth" };
+        Param<T> depthMillis { "depthMillis" };
         Param<T> blend { "blend" };
-        T offset;
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
 
@@ -40,14 +40,14 @@ namespace giml {
             this->osc.setFrequency(this->rate());
             this->params.push_back(&this->rate);
 
-            this->depth = Param<T>("depth", millisToSamples(15.0, samprate), 0.0, millisToSamples(49.0, samprate));
+            this->depthMillis = Param<T>("depthMillis", 15.0, 0.0, maxDepthMillis);
             this->buffer.allocate(giml::millisToSamples(maxDepthMillis, samprate)); // max delay is 50ms 
-            this->params.push_back(&this->depth);
+            this->params.push_back(&this->depthMillis);
 
             this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
             this->params.push_back(&this->blend);
 
-            this->offset = giml::millisToSamples(20.0, samprate); 
+            this->updateParams();
         }
 
         // Destructor
@@ -57,6 +57,7 @@ namespace giml {
         Chorus(const Chorus<T>& c) : Effect<T>(c) {
             this->sampleRate = c.sampleRate;
             this->rate = c.rate;
+            this->depthMillis = c.depthMillis;
             this->depth = c.depth;
             this->blend = c.blend;
             this->offset = c.offset;
@@ -69,6 +70,7 @@ namespace giml {
             Effect<T>::operator=(c);
             this->sampleRate = c.sampleRate;
             this->rate = c.rate;
+            this->depthMillis = c.depthMillis;
             this->depth = c.depth;
             this->blend = c.blend;
             this->offset = c.offset;            
@@ -90,7 +92,7 @@ namespace giml {
             if (!this->enabled) { return in; }
 
             // y_n = x_{n - (offset + osc_n * depth)}
-            float readIndex = this->offset + this->osc.processSample() * this->depth();
+            float readIndex = this->offset + this->osc.processSample() * this->depth;
             T wet = this->buffer.readSample(readIndex);
             return giml::powMix<float>(in, wet, this->blend()); // return mix
         }
@@ -103,6 +105,10 @@ namespace giml {
             this->setRate(rate);
             this->setDepth(depth);
             this->setBlend(blend);
+        }
+
+        void updateParams() {
+            this->setParams(this->rate(), this->depthMillis(), this->blend());
         }
 
         /**
@@ -124,7 +130,7 @@ namespace giml {
             d = giml::millisToSamples(d, this->sampleRate);
             this->offset = d + giml::millisToSamples(5.0, this->sampleRate);
             if (d + this->offset > this->buffer.size()) {
-                d = giml::samplesToMillis(this->buffer.size(), this->sampleRate) - this->offset;
+                d = this->buffer.size() - this->offset;
             }
             this->offset = d + giml::millisToSamples(5.0, this->sampleRate);
             this->depth = d;

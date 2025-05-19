@@ -31,15 +31,17 @@ namespace giml {
             this->delayTime = Param<T>("delayTime", 398.0, 0.0, maxDelayMillis);
             this->params.push_back(&this->delayTime);
             
-            this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
+            this->blend = Param<T>("blend", 0.24, 0.0, 1.0);
             this->params.push_back(&this->blend);
             
-            this->damping = Param<T>("damping", 0.5, 0.0, 1.0);
+            this->damping = Param<T>("damping", 0.7, 0.0, 1.0);
             this->params.push_back(&this->damping);
 
             this->buffer.allocate(giml::millisToSamples(maxDelayMillis, samprate)); // max delayTime is 3 seconds
             this->loPass.setG(this->damping()); // set damping 
             this->dcBlock.setCutoff(3.0, samprate);// set dcBlock at 3Hz
+
+            this->updateParams();
         }
 
         // Destructor
@@ -95,6 +97,10 @@ namespace giml {
             this->setFeedback(feedback);
             this->setDamping(damping);
             this->setBlend(blend);
+        }
+
+        void updateParams() override {
+            this->setParams(this->delayTime(), this->feedback(), this->damping(), this->blend());
         }
 
         /**

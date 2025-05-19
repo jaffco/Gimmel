@@ -12,11 +12,13 @@ namespace giml {
     class Compressor : public Effect<T> {
     private:
         int sampleRate;
+        T aAttack = 0.0; // attack coefficient
+        T aRelease = 0.0; // release coefficient
         Param<T> thresh_dB { "threshold" };
         Param<T> ratio { "ratio" };
         Param<T> knee_dB { "knee" };
-        Param<T> aRelease { "release" };
-        Param<T> aAttack { "attack" };
+        Param<T> attackMillis { "attackMillis" };
+        Param<T> releaseMillis { "releaseMillis" };
         Param<T> makeupGain_dB { "makeupGain" };
         dBDetector<T> detector; // dB detector
 
@@ -54,24 +56,22 @@ namespace giml {
             this->thresh_dB = Param<T>("threshold", 0.0, -60.0, 0.0);
             this->params.push_back(&this->thresh_dB);
             
-            this->ratio = Param<T>("ratio", 2.0, 1.0, 20.0);
+            this->ratio = Param<T>("ratio", 4.0, 1.1, 20.0);
             this->params.push_back(&this->ratio);
             
             this->knee_dB = Param<T>("knee", 1.0, 0.001, 10.0);
             this->params.push_back(&this->knee_dB);
             
-            this->aAttack = Param<T>("attack", 0.0, 0.0, 0.999);  // Coefficient value
-            this->params.push_back(&this->aAttack);
+            this->attackMillis = Param<T>("attackMillis", 3.5, 0.0, 100);  // Coefficient value
+            this->params.push_back(&this->attackMillis);
             
-            this->aRelease = Param<T>("release", 0.0, 0.0, 0.999);  // Coefficient value
-            this->params.push_back(&this->aRelease);
+            this->releaseMillis = Param<T>("releaseMillis", 100.0, 0.0, 300);  // Coefficient value
+            this->params.push_back(&this->releaseMillis);
             
             this->makeupGain_dB = Param<T>("makeupGain", 0.0, -20.0, 20.0);
             this->params.push_back(&this->makeupGain_dB);
             
-            // Initialize attack/release coefficients
-            this->setAttack(3.5);  // Default 3.5ms attack
-            this->setRelease(100.0);  // Default 100ms release
+            this->updateParams();
         }
         
         // Destructor
@@ -80,11 +80,13 @@ namespace giml {
         // Copy constructor
         Compressor(const Compressor<T>& c) : Effect<T>(c) {
             this->sampleRate = c.sampleRate;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
             this->thresh_dB = c.thresh_dB;
             this->ratio = c.ratio;
             this->knee_dB = c.knee_dB;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
+            this->attackMillis = c.attackMillis;
+            this->releaseMillis = c.releaseMillis;
             this->makeupGain_dB = c.makeupGain_dB;
             this->detector = c.detector;
         }
@@ -93,9 +95,13 @@ namespace giml {
         Compressor<T>& operator=(const Compressor<T>& c) {
             Effect<T>::operator=(c);
             this->sampleRate = c.sampleRate;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
             this->thresh_dB = c.thresh_dB;
             this->ratio = c.ratio;
             this->knee_dB = c.knee_dB;
+            this->attackMillis = c.attackMillis;
+            this->releaseMillis = c.releaseMillis;
             this->aAttack = c.aAttack;
             this->aRelease = c.aRelease;
             this->makeupGain_dB = c.makeupGain_dB;
@@ -114,7 +120,7 @@ namespace giml {
             T xG = giml::aTodB(in); // xG
             T yG = computeGain(xG, this->thresh_dB(), this->ratio(), this->knee_dB()); // yG
             T xL = xG - yG; // xL
-            T yL = this->detector(xL, this->aAttack(), this->aRelease()); // yL
+            T yL = this->detector(xL, this->aAttack, this->aRelease); // yL
             T cdB = this->makeupGain_dB() - yL; // cdB = M - yL
 
             T gain = giml::dBtoA(cdB); // lin()
@@ -133,6 +139,11 @@ namespace giml {
             this->setKnee(knee);
             this->setAttack(attack);
             this->setRelease(release);
+        }
+
+        void updateParams() override {
+            this->setParams(this->thresh_dB(), this->ratio(), this->makeupGain_dB(),
+                            this->knee_dB(), this->attackMillis(), this->releaseMillis());
         }
 
         /**

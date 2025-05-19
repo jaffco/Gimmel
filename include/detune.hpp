@@ -17,8 +17,9 @@ namespace giml {
     class Detune : public Effect<T> {
     private:
         int sampleRate;
+        T windowSize;
         Param<T> pitchRatio { "pitchRatio" };
-        Param<T> windowSize { "windowSize" };
+        Param<T> windowSizeMillis { "windowSizeMillis" };
         Param<T> blend { "blend" };
         giml::CircularBuffer<T> buffer;
         giml::Phasor<T> osc;
@@ -30,14 +31,16 @@ namespace giml {
             this->pitchRatio = Param<T>("pitchRatio", 1.0, 0.5, 2.0);
             this->params.push_back(&this->pitchRatio);
             
-            this->windowSize = Param<T>("windowSize", 1000.0, 10.0, maxWindowMillis);
-            this->params.push_back(&this->windowSize);
+            this->windowSizeMillis = Param<T>("windowSizeMillis", 22.0, 10.0, maxWindowMillis);
+            this->params.push_back(&this->windowSizeMillis);
             
             this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
             this->params.push_back(&this->blend);
             
-            this->osc.setFrequency(1000.0 * ((1.0 - this->pitchRatio()) / this->windowSize()));
+            this->osc.setFrequency(1000.0 * ((1.0 - this->pitchRatio()) / this->windowSizeMillis()));
             this->buffer.allocate(giml::millisToSamples(maxWindowMillis, samprate));
+
+            this->updateParams();
         }
 
         // Destructor 
@@ -48,6 +51,7 @@ namespace giml {
             this->sampleRate = d.sampleRate;
             this->pitchRatio = d.pitchRatio;
             this->windowSize = d.windowSize;
+            this->windowSizeMillis = d.windowSizeMillis;
             this->blend = d.blend;
             this->buffer = d.buffer;
             this->osc = d.osc;
@@ -59,6 +63,7 @@ namespace giml {
             this->sampleRate = d.sampleRate;
             this->pitchRatio = d.pitchRatio;
             this->windowSize = d.windowSize;
+            this->windowSizeMillis = d.windowSizeMillis;
             this->blend = d.blend;
             this->buffer = d.buffer;
             this->osc = d.osc;
@@ -81,8 +86,8 @@ namespace giml {
             float phase2 = phase + 0.5; // mod phase
             phase2 -= floor(phase2); // wrap mod phase
 
-            float readIndex = phase * this->windowSize(); // readpoint 1 
-            float readIndex2 = phase2 * this->windowSize(); // readpoint 2
+            float readIndex = phase * this->windowSize; // readpoint 1 
+            float readIndex2 = phase2 * this->windowSize; // readpoint 2
 
             T output = this->buffer.readSample(readIndex); // get sample
             T output2 = this->buffer.readSample(readIndex2); // get sample 2
@@ -103,13 +108,17 @@ namespace giml {
             this->setBlend(blend);
         }
 
+        void updateParams() {
+            this->setParams(this->pitchRatio(), this->windowSizeMillis(), this->blend());
+        }
+
         /**
          * @brief Set the pitch change ratio
          * @param ratio of desired pitch to input 
          */
         void setPitchRatio(T ratio) {
             this->pitchRatio = ratio;
-            this->osc.setFrequency(1000.0 * ((1.0 - ratio) / this->windowSize()));
+            this->osc.setFrequency(1000.0 * ((1.0 - ratio) / this->windowSizeMillis()));
         }
 
         /**

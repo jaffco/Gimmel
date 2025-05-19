@@ -17,8 +17,9 @@ namespace giml {
     class Flanger : public Effect<T> {
     private:
         int sampleRate;
+        T depth;
         Param<T> rate { "rate" };
-        Param<T> depth { "depth" };
+        Param<T> depthMillis { "depthMillis" };
         Param<T> blend { "blend" };
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
@@ -39,13 +40,15 @@ namespace giml {
             this->params.push_back(&this->rate);
             
             T maxDepthSamples = giml::millisToSamples(maxDepthMillis, samprate);
-            this->depth = Param<T>("depth", giml::millisToSamples(5.0, samprate), 0.0, maxDepthSamples);
-            this->params.push_back(&this->depth);
+            this->depthMillis = Param<T>("depthMillis", giml::millisToSamples(5.0, samprate), 0.0, maxDepthSamples);
+            this->params.push_back(&this->depthMillis);
             
             this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
             this->params.push_back(&this->blend);
             
             this->buffer.allocate(maxDepthSamples); // max delay is 10ms
+
+            this->updateParams();
         }
 
         // Destructor
@@ -56,6 +59,7 @@ namespace giml {
             this->sampleRate = f.sampleRate;
             this->rate = f.rate;
             this->depth = f.depth;
+            this->depthMillis = f.depthMillis;
             this->blend = f.blend;
             this->buffer = f.buffer;
             this->osc = f.osc;
@@ -67,6 +71,7 @@ namespace giml {
             this->sampleRate = f.sampleRate;
             this->rate = f.rate;
             this->depth = f.depth;
+            this->depthMillis = f.depthMillis;
             this->blend = f.blend;
             this->buffer = f.buffer;
             this->osc = f.osc;
@@ -86,7 +91,7 @@ namespace giml {
             if (!this->enabled) { return in; }
 
             // y[n] = x[n] + x[depth + osc_n * depth]
-            float readIndex = this->depth() + this->osc.processSample() * this->depth();
+            float readIndex = this->depth + this->osc.processSample() * this->depth;
             T output = this->buffer.readSample(readIndex);
             return giml::powMix<T>(in, output, this->blend()); // return mix
         }
@@ -98,6 +103,10 @@ namespace giml {
             this->setRate(rate);
             this->setDepth(depth);
             this->setBlend(blend);
+        }
+
+        void updateParams() override {
+            this->setParams(this->rate(), this->depthMillis(), this->blend());
         }
 
         /**
