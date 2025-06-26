@@ -41,7 +41,7 @@ namespace giml {
      * @return msVal translated to samples
      */
     inline float millisToSamples(float msVal, int sampRate) {
-        return msVal * sampRate / 1000.f;
+        return msVal * sampRate * 0.001f;
     }
 
     /**
@@ -163,6 +163,17 @@ namespace giml {
     inline T t60(T numSamps) {
         T gVal = ::pow(2e-10, 1.0 / numSamps);
         return gVal;
+    }
+
+    /**
+     * @brief produces filter coefficient for a one-pole lowpass 
+     * from a desired response time in milliseconds. 
+     * Eq. 7 from Reiss et al. 2011 
+     */
+    template <typename T>
+    inline T timeConstant(T timeMillis, int sampleRate) {
+        timeMillis = std::max(timeMillis, T(1e-6));
+        return exp(-1.0 / millisToSamples(timeMillis, sampleRate));
     }
 
     /**
