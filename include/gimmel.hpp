@@ -3,6 +3,7 @@
 #include "compressor.hpp"
 #include "delay.hpp"
 #include "detune.hpp"
+#include "envelope.hpp"
 #include "expander.hpp"
 #include "filter.hpp"
 #include "flanger.hpp"
