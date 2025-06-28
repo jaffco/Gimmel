@@ -3,7 +3,7 @@ name: Multi-OS, Multi-Compiler Build
 on:
   workflow_dispatch:
   push:
-    branches: [ main, dev, action ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main, dev ]
 
@@ -12,8 +12,82 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  jaffx-build:
+    runs-on: ubuntu-22.04
+    name: "JAFFX build"
+    
+    steps:
+    - name: Clone JAFFX repository
+      uses: actions/checkout@v4
+      with:
+        repository: jaffco/JAFFX
+        submodules: recursive
+    
+    - name: Install ARM GCC Toolchain
+      run: |
+        # Install ARM GCC toolchain
+        curl -LO https://developer.arm.com/-/media/Files/downloads/gnu-rm/10-2020q4/gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2
+        tar -xjf gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2 -C /opt
+        sudo ln -s /opt/gcc-arm-none-eabi-10-2020-q4-major/bin/* /usr/local/bin
+        rm gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2
+        
+        # Verify toolchain installation
+        arm-none-eabi-gcc --version
+    
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make bash curl bzip2 git
+    
+    - name: Initialize JAFFX repository
+      run: |
+        ./init.sh
+
+    - name: Check out current Gimmel branch in JAFFX
+      run: |
+        cd Gimmel
+        git fetch origin
+        
+        # Extract branch name and handle PRs
+        if [[ "${{ github.ref }}" == refs/pull/* ]]; then
+          echo "PR detected, using head branch: ${{ github.head_ref }}"
+          HEAD_BRANCH="${{ github.head_ref }}"
+          
+          # Check if head branch exists on remote first
+          if git ls-remote --heads origin $HEAD_BRANCH | grep -q $HEAD_BRANCH; then
+            echo "Head branch $HEAD_BRANCH exists on remote, checking out"
+            git fetch origin $HEAD_BRANCH:$HEAD_BRANCH || git fetch origin $HEAD_BRANCH
+            git checkout $HEAD_BRANCH
+          else
+            echo "Head branch $HEAD_BRANCH does not exist in Gimmel repository, using base: ${{ github.base_ref }}"
+            git checkout ${{ github.base_ref }} || git checkout main
+          fi
+        else
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "Checking out branch: $BRANCH_NAME"
+          
+          # Check if branch exists on remote first
+          if git ls-remote --heads origin $BRANCH_NAME | grep -q $BRANCH_NAME; then
+            echo "Branch $BRANCH_NAME exists on remote, checking out"
+            # Fetch the specific branch and create local tracking branch
+            git fetch origin $BRANCH_NAME:$BRANCH_NAME || git fetch origin $BRANCH_NAME
+            git checkout $BRANCH_NAME
+          else
+            echo "Branch $BRANCH_NAME does not exist in Gimmel repository, staying on default branch"
+            echo "Available branches:"
+            git branch -r
+          fi
+        fi
+      shell: bash
+    
+    - name: Build src/main/main.cpp
+      run: |
+        cd src/main
+        make
+
+  gimmel-test-build:
     runs-on: ${{ matrix.os }}
+    name: "gimmel-test build"
     
     strategy:
       matrix:
@@ -75,8 +149,18 @@ jobs:
         
         # Extract branch name and handle PRs
         if [[ "${{ github.ref }}" == refs/pull/* ]]; then
-          echo "PR detected, using base branch"
-          git checkout ${{ github.base_ref }}
+          echo "PR detected, using head branch: ${{ github.head_ref }}"
+          HEAD_BRANCH="${{ github.head_ref }}"
+          
+          # Check if head branch exists on remote first
+          if git ls-remote --heads origin $HEAD_BRANCH | grep -q $HEAD_BRANCH; then
+            echo "Head branch $HEAD_BRANCH exists on remote, checking out"
+            git fetch origin $HEAD_BRANCH:$HEAD_BRANCH || git fetch origin $HEAD_BRANCH
+            git checkout $HEAD_BRANCH
+          else
+            echo "Head branch $HEAD_BRANCH does not exist in Gimmel repository, using base: ${{ github.base_ref }}"
+            git checkout ${{ github.base_ref }} || git checkout main
+          fi
         else
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "Checking out branch: $BRANCH_NAME"
