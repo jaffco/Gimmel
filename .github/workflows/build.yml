@@ -85,6 +85,38 @@ jobs:
         cd src/main
         make
 
+    - name: Build all JAFFX examples
+      run: |
+        echo "Building all examples in src/ directory:"
+        
+        # Find all directories in src/ that contain Makefiles
+        for example_dir in src/*/; do
+          if [ -f "${example_dir}Makefile" ]; then
+            example_name=$(basename "$example_dir")
+            echo "Building example: $example_name"
+            
+            cd "$example_dir"
+            if make clean && make; then
+              echo "✅ Successfully built $example_name"
+            else
+              echo "❌ Failed to build $example_name"
+              exit 1
+            fi
+            cd - > /dev/null
+          fi
+        done
+        
+        echo "All examples built successfully!"
+      shell: bash
+
+    - name: List built artifacts
+      run: |
+        echo "Built artifacts:"
+        find src/ -name "*.bin" -o -name "*.elf" -o -name "*.hex" | while read file; do
+          echo "  $file ($(file "$file" | cut -d: -f2))"
+        done
+      shell: bash
+
   gimmel-test-build:
     runs-on: ${{ matrix.os }}
     name: "gimmel-test build"
@@ -115,16 +147,6 @@ jobs:
           ladspa-sdk libcurl4-openssl-dev libfreetype6-dev libx11-dev libxcomposite-dev \
           libxcursor-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
           libwebkit2gtk-4.0-dev libglu1-mesa-dev mesa-common-dev
-    
-    # - name: Install gimmel-test dependencies (macOS)
-    #   if: matrix.os == 'macos-latest'
-    #   run: |
-    #     brew install cmake
-
-    # - name: Install gimmel-test dependencies (Windows)
-    #   if: matrix.os == 'windows-latest'
-    #   run: |
-    #     choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
 
     - name: Set up Python
       uses: actions/setup-python@v4
