@@ -142,7 +142,7 @@ namespace giml {
          * @param r ratio
          */
         void setRatio(T r) {
-            if (r <= 1.0) { r = 1.0 + 1e-6; }
+            r = std::max(r, T(1.0 + 1e-6)); // avoid div by zero / negative values
             this->ratio = r;
         }
         
@@ -151,7 +151,7 @@ namespace giml {
          * @param widthdB width value in dB
          */
         void setKnee(T widthdB) {
-            if (widthdB <= 0.0) { widthdB = 1e-6; }
+            widthdB = std::max(widthdB, T(1e-6)); // avoid div by zero / negative values
             this->knee_dB = widthdB;
         }
 
@@ -160,9 +160,9 @@ namespace giml {
          * @param attackMillis attack time in milliseconds 
          */
         void setAttack(T attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
-            if (attackMillis <= 0.0) { attackMillis = 1e-6; }
+            attackMillis = std::max(attackMillis, T(1e-6)); // avoid div by zero / negative values
             T timeS = attackMillis * 0.001; // convert to seconds
-            constexpr float log109 = log10(9);
+            constexpr float log109 = 0.9542425094393249f;
             this->aAttack = exp(-log109 / (timeS * this->sampleRate));
         }
 
@@ -170,10 +170,10 @@ namespace giml {
          * @brief set release time 
          * @param releaseMillis release time in milliseconds 
          */
-        void setRelease(T releaseMillis) { // // 
-            if (releaseMillis <= 0.0) { releaseMillis = 1e-6; }
+        void setRelease(T releaseMillis) { // //
+            releaseMillis = std::max(releaseMillis, T(1e-6)); // avoid div by zero / negative values
             T timeS = releaseMillis * 0.001; // convert to seconds
-            constexpr float log109 = log10(9);
+            constexpr float log109 = 0.9542425094393249f;
             this->aRelease = exp(-log109 / (timeS * this->sampleRate));
         }
     };
