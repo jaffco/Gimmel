@@ -56,6 +56,13 @@ namespace giml {
     }
 
     /**
+     * @brief implementation of Gen~'s scale operator 
+     */
+    inline float scale(float x, float inMin, float inMax, float outMin, float outMax) {
+        return ((x - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
+    }
+
+    /**
      * @brief Mixes two numbers with linear interpolation
      * @param in1 input 1
      * @param in2 input 2
@@ -224,6 +231,57 @@ namespace giml {
             y1last = std::max(xL, (aR * y1last) + ((T(1.0) - aR) * xL)); // Release
             yL_last = (aA * yL_last) + ((T(1.0) - aA) * y1last); // Attack
             return yL_last;
+        }
+    };
+
+    /**
+     * @brief Vactrol emulation from Generating Sound & Organizing Time (pg. 170)
+     */
+    template <typename T>
+    class Vactrol {
+    private:
+        int sampleRate;
+        T attackMillis, decayMillis;
+        T y1 = 0.f; // previous output sample
+
+    public:
+        /**
+         * @brief Constructor to initialize Vactrol with sample rate and default attack/decay values
+         * @param sampleRate Sample rate of the project
+         * @param attackMillis Initial attack time in milliseconds
+         * @param decayMillis Initial decay time in milliseconds
+         */
+        Vactrol(int sampleRate, T attackMillis = 10.f, T decayMillis = 500.f)
+            : sampleRate(sampleRate), attackMillis(attackMillis), decayMillis(decayMillis) {}
+
+        Vactrol() = delete;
+
+        /**
+         * @brief Sets the attack time in milliseconds
+         * @param attackMillis Attack time in milliseconds
+         */
+        void setAttackMillis(T attackMillis) {
+            this->attackMillis = attackMillis;
+        }
+
+        /**
+         * @brief Sets the decay time in milliseconds
+         * @param decayMillis Decay time in milliseconds
+         */
+        void setDecayMillis(T decayMillis) {
+            this->decayMillis = decayMillis;
+        }
+
+        /**
+         * @brief performs vactrol emulation. Expects input to be rectified ( in the range `[0, 1]`)
+         */
+        T operator()(const T& in) {
+            T riseOrFall = linMix(decayMillis, attackMillis, in);
+            T samps = millisToSamples(riseOrFall, sampleRate);
+            samps = std::max(samps, 1.f); // make sure it's at least 1
+            T t60Val = t60(samps);
+            this->y1 = linMix(in, y1, t60Val); // apply filter 
+            return y1; // return the current output
         }
     };
 
