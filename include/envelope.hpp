@@ -57,9 +57,10 @@ namespace giml {
             T rectfied = abs(in);
             T cutoff = mVactrol(rectfied);
 
-            // warp cutoff and scale to desired frequency range
-            cutoff = std::log10f( (cutoff / 0.11111111111f) + 1.f );
-            cutoff = scale(cutoff, 0, 1, 185, 1900);
+            // "double warp"
+            cutoff = std::log10((cutoff * 9.0f) + 1.0f); // basic curve 
+            cutoff = std::sqrt(cutoff);  // ^0.5, general form is ^(1 / sensitivity)
+            cutoff = scale(cutoff, 0, 1, 185, 3500); // map to frequency range
             
             // apply filter
             mFilter.setParams(cutoff, qFactor, sampleRate);
@@ -68,7 +69,7 @@ namespace giml {
         }        
         
         // Set parameters for the envelope filter
-        void setParams(T qFactor = 10.0, T attackMillis = 3.5, T releaseMillis = 100.0) {
+        void setParams(T qFactor = 10.0, T attackMillis = 7.76, T releaseMillis = 1105.0) {
             this->setQ(qFactor);
             this->setAttack(attackMillis);
             this->setRelease(releaseMillis);
