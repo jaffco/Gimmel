@@ -186,13 +186,7 @@ namespace giml {
         std::string name;
 
         Param() = delete;
-        Param(
-            std::string name, 
-            T def = 0.0, 
-            T min = 0.0, 
-            T max = 0.0, 
-            TYPE type = CONTINUOUS 
-        ) {
+        Param( std::string name, T def = 0.5, T min = 0.0, T max = 1.0, TYPE type = CONTINUOUS) {
             this->name = name;
             this->type = type;
             this->def = def;
@@ -201,7 +195,7 @@ namespace giml {
             this->current = def;
         }
 
-        // Copy Contructor
+        // Copy constructor
         Param(const Param& p) {
             this->name = p.name;
             this->type = p.type;
@@ -265,10 +259,13 @@ namespace giml {
 
     /**
      * @brief Effect class that implements a toggle switch (disabled by default)
-     * @todo copy constructor / assignment operator to call in derived classes
      */
     template <typename T>
     class Effect {
+    protected:
+        bool enabled = false;
+        std::vector<Param<T>*> params;    
+
     public:
         Effect() {}
         virtual ~Effect() {}
@@ -294,9 +291,14 @@ namespace giml {
         virtual void disable() { this->enabled = false; }
         
         /**
-         * @brief `toggle()` function with overloads. 
+         * @brief inverts the state of the effect. 
          */
         virtual void toggle() { this->enabled = !(this->enabled); }
+
+        /**
+         * @brief sets the desired state of the effect
+         * @param desiredState true to enable, false to disable
+         */
         virtual void toggle(bool desiredState) { this->enabled = desiredState; }
 
         virtual inline T processSample(const T& in) { return in; }
@@ -308,16 +310,11 @@ namespace giml {
                     return; // return once param is found 
                 }
             }
-            std::cout << "Param " << name.c_str() << " not found!" << std::endl;
+            printf("Param %s not found!\n", name.c_str());
         }
 
         inline virtual void updateParams() {}
-
-        inline std::vector<Param<T>*> getParams() { return this->params; }
-
-    protected:
-        bool enabled = false;
-        std::vector<Param<T>*> params; // should use std::map?
+        inline const std::vector<Param<T>*>& getParams() const { return this->params; }
     };
 
     /**

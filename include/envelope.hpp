@@ -12,7 +12,10 @@ namespace giml {
     class EnvelopeFilter : public Effect<T> {
     private:
         int sampleRate;
-        T qFactor, aAttack, aRelease;
+        T aAttack, aRelease;
+        Param<T> qFactor { "qFactor" }; // Q factor for the filter
+        Param<T> attackMillis { "attackMillis" };
+        Param<T> releaseMillis { "releaseMillis" };
         Vactrol<T> mVactrol;
         SVF<T> mFilter;
 
@@ -23,6 +26,16 @@ namespace giml {
         EnvelopeFilter(int sampleRate) : sampleRate(sampleRate), 
                                          mVactrol(sampleRate), 
                                          mFilter(sampleRate) {
+
+            this->qFactor = Param<T>("qFactor", 10.0, 1.0, 20.0);
+            this->params.push_back(&this->qFactor);
+
+            this->attackMillis = Param<T>("attackMillis", 7.76, 0.0, 100);
+            this->params.push_back(&this->attackMillis);
+
+            this->releaseMillis = Param<T>("releaseMillis", 1105.0, 0.0, 300);
+            this->params.push_back(&this->releaseMillis);     
+                                       
             this->setParams();
         }
         
@@ -75,6 +88,10 @@ namespace giml {
             this->setRelease(releaseMillis);
         }
 
+        void updateParams() override {
+            this->setParams(this->qFactor(), this->attackMillis(), this->releaseMillis());
+        }
+
         /**
          * @brief set Q factor for the filter
          * @param qFactor Q factor, floored at 1e-6
@@ -89,6 +106,7 @@ namespace giml {
          * @param attackMillis attack time in milliseconds 
          */
         void setAttack(T attackMillis) { // calculated from Reiss et al. 2011 (Eq. 7)
+            this->attackMillis = attackMillis;
             this->aAttack = timeConstant(attackMillis, sampleRate);
         }
 
@@ -97,6 +115,7 @@ namespace giml {
          * @param releaseMillis release time in milliseconds 
          */
         void setRelease(T releaseMillis) { // // 
+            this->releaseMillis = releaseMillis;
             this->aRelease = timeConstant(releaseMillis, sampleRate);
         }
 
