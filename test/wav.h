@@ -3,7 +3,7 @@
 #define WAV_H
 
 #define DR_WAV_IMPLEMENTATION
-#include "dr_libs/dr_wav.h"
+#include "include/ezWav/dr_wav.h"
 
 #include <iostream>
 #include <stdlib.h> //For malloc
@@ -38,7 +38,7 @@ private:
     }
     void openWAVFile(const char* filename) {
         drwav wav;
-        if (!drwav_init_file(&wav, filename, NULL)) {
+        if (!drwav_init_file(&wav, filename)) {
             // Error opening WAV file.
             std::cout << "Could not open WAV file for reading: " << filename << std::endl;
             exit(0);
@@ -81,7 +81,7 @@ public:
         wavFormat.format = DR_WAVE_FORMAT_PCM;
         wavFormat.sampleRate = sampleRate;
 
-        drwav_init_file_write(pWAV, filename, &wavFormat, NULL);
+        drwav_init_file_write(pWAV, filename, &wavFormat);
         if (!pWAV) {
             //Could not open the file
             std::cout << "Could not open WAV file for writing: " << filename << std::endl;
