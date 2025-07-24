@@ -13,7 +13,13 @@ endif()
 # Compiler-specific optimizations for benchmarking
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
-        add_compile_options(/O2 /DNDEBUG)
+        # For MSVC, remove debug flags and add optimization
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+        string(REPLACE "/RTCu" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTCu" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG /DWIN32_LEAN_AND_MEAN")
+        add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
     else()
         add_compile_options(-O3 -DNDEBUG)
     endif()
@@ -61,6 +67,16 @@ if(WIN32)
     set_target_properties(full_benchmark PROPERTIES
         WIN32_EXECUTABLE FALSE
     )
+    
+    # Ensure MSVC flags are properly set for each target
+    if(MSVC)
+        set_target_properties(micro_benchmark PROPERTIES
+            COMPILE_FLAGS "/O2 /DNDEBUG"
+        )
+        set_target_properties(full_benchmark PROPERTIES
+            COMPILE_FLAGS "/O2 /DNDEBUG"
+        )
+    endif()
 elseif(APPLE)
     # macOS-specific settings
     set_target_properties(micro_benchmark PROPERTIES
