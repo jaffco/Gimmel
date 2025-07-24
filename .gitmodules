@@ -1,6 +1,6 @@
-[submodule "test/dr_libs"]
-	path = test/dr_libs
-	url = https://github.com/mackron/dr_libs.git
 [submodule "test/TestBiquad"]
 	path = test/TestBiquad
 	url = https://github.com/Mahdi03/GimmelTestBiquad.git
+[submodule "test/include/ezWav"]
+	path = test/include/ezWav
+	url = https://github.com/joeljaffesd/ezWav

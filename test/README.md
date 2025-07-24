@@ -4,7 +4,7 @@ This directory contains comprehensive benchmarking tools for all gimmel audio ef
 
 ## Test Files
 
-### 1. `test.cpp` - Full Audio Processing Benchmark
+### 1. `src/benchmark.cpp` - Full Audio Processing Benchmark
 - Comprehensive benchmark suite that tests all gimmel effects
 - Includes both `setParams()` and `processSample()` performance testing
 - Tests effects processing real audio files
@@ -16,7 +16,7 @@ This directory contains comprehensive benchmarking tools for all gimmel audio ef
 - Real-time factor calculation
 - Performance comparison across all effects
 
-### 2. `micro_benchmark.cpp` - Micro-benchmark Suite  
+### 2. `src/micro-benchmark.cpp` - Micro-benchmark Suite  
 - Focused micro-benchmarks for each effect
 - Higher iteration counts for precise measurements
 - No audio file dependencies
@@ -45,22 +45,68 @@ The test suite benchmarks all 12 gimmel effects in alphabetical order:
 - **Saturation** - Harmonic saturation/distortion
 - **Tremolo** - Amplitude modulation tremolo
 
-## Building and Running
+## Project Structure
 
-### Quick Micro-benchmark (Recommended)
-```bash
-./build_micro_benchmark.sh
+```
+test/
+├── src/
+│   ├── benchmark.cpp         # Full audio processing benchmark
+│   └── micro-benchmark.cpp   # Micro-benchmark suite
+├── audio/                    # Audio test files
+├── CMakeLists.txt           # CMake build configuration
+├── run.sh                   # Build and run script
+└── README.md               # This file
 ```
 
-### Full Audio Processing Benchmark
+## Building and Running
+
+### 🚀 Quick Start with CMake (Recommended)
+
+**One-command build and run:**
 ```bash
-./build_and_run_benchmark.sh
+# Build and run all benchmarks
+./run.sh
+
+# Specific benchmark options
+./run.sh --micro           # Micro-benchmark only
+./run.sh --full            # Full audio benchmark only
+./run.sh --clean --all     # Clean build, then run all
+./run.sh --verbose         # Show detailed build output
+./run.sh --help            # Show all options
+```
+
+### 🔧 Manual CMake Build
+
+**For custom builds or CI/CD:**
+```bash
+# 1. Configure and build
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+
+# 2. Run benchmarks
+cmake --build . --target run_micro   # Micro-benchmark
+cmake --build . --target run_full    # Full benchmark  
+cmake --build . --target run_all     # All benchmarks
+
+# Or execute directly
+./micro_benchmark
+./full_benchmark
+```
+
+### 🧪 Testing with CTest
+```bash
+# After building with CMake
+cd build
+ctest --verbose
 ```
 
 ## Build Requirements
 
-- C++17 compatible compiler (g++, clang++)
-- No external dependencies (self-contained)
+- **CMake 3.12+** (cross-platform build system)
+- **C++17 compatible compiler** (g++, clang++, MSVC)
+- **Audio files** in `audio/` directory (for full benchmark)
+- **No external dependencies** (self-contained)
 
 ## Output Format
 
@@ -121,7 +167,9 @@ To add a new effect to the benchmark suite:
 
 ## Notes
 
-- Compile with `-O3 -DNDEBUG` for accurate performance measurements
+- **CMake automatically applies optimization flags** (`-O3 -DNDEBUG` for Release builds)
 - Run multiple times and average results for consistency  
 - Performance may vary based on system load and CPU features
 - Some effects may not have `setParams()` methods (will be noted in output)
+- **Cross-platform support**: CMake works on Linux, macOS, and Windows
+- Build artifacts are placed in the `build/` directory
