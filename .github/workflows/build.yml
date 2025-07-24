@@ -212,3 +212,56 @@ jobs:
         find build -name "*.vst3" -o -name "*.component" -o -name "*.app" -o -name "*.exe" 2>/dev/null || true
         ls -la build/GIMMEL-TEST_artefacts/ 2>/dev/null || true
       shell: bash
+
+  gimmel-benchmark:
+    runs-on: ${{ matrix.os }}
+    name: "Gimmel Benchmark (${{ matrix.name }})"
+    
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-22.04
+            name: Linux
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install build dependencies (Linux)
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+
+    - name: Install build dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake
+
+    - name: Install build dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: microsoft/setup-msbuild@v1.3
+
+    - name: Run benchmark tests
+      run: |
+        cd test
+        chmod +x run.sh
+        ./run.sh --all --verbose
+      shell: bash
+
+    - name: Upload benchmark results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ matrix.name }}
+        path: |
+          test/build/micro_benchmark*
+          test/build/full_benchmark*
+        retention-days: 7
