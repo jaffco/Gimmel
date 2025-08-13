@@ -99,7 +99,7 @@ namespace giml {
             this->setBlend(blend);
         }
 
-        void updateParams() {
+        void updateParams() override {
             this->setParams(this->rate(), this->depthMillis(), this->blend());
         }
 

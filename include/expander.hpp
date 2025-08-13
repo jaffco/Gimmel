@@ -20,7 +20,7 @@ namespace giml {
         Param<T> knee_dB { "knee", 0.001, 10.0, 2.0 };
         Param<T> attackMillis { "attackMillis", 0.0, 100.0, 3.5 };
         Param<T> releaseMillis { "releaseMillis", 0.0, 300.0, 100.0 };
-        BoolParam<T> sideChainEnabled { "sideChainEnabled", 0.0 };
+        BoolParam<T> sideChainEnabled { "sideChainEnabled", false };
         dBDetector<T> detector; // dB detector
         T sideChainLastIn = 0.0;
 

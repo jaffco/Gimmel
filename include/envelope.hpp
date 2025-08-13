@@ -27,9 +27,8 @@ namespace giml {
                                          mVactrol(sampleRate), 
                                          mFilter(sampleRate) {
 
-            this->registerParameters(qFactor, attackMillis, releaseMillis);
-                                       
-            this->setParams();
+            this->registerParameters(qFactor, attackMillis, releaseMillis);               
+            this->updateParams();
         }
         
         // Destructor
@@ -43,7 +42,7 @@ namespace giml {
             this->aRelease = e.aRelease;
             this->mVactrol = e.mVactrol;
             this->mFilter = e.mFilter;
-            this->registerParameters(qFactor, aAttack, aRelease);
+            this->registerParameters(qFactor, attackMillis, releaseMillis);
         }
 
         // Copy assignment operator 

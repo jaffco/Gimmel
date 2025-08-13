@@ -179,13 +179,13 @@ namespace giml {
     template <typename T>
     class ParamMeta {
     protected:
-        T def, min, max, current;
+        T min, max, def, current;
         std::string name;
 
     public:
         ParamMeta() = delete;
         
-        ParamMeta(const std::string& name, T def = 0.5, T min = 0.0, T max = 1.0) 
+        ParamMeta(const std::string& name, T min = 0.0, T max = 1.0, T def = 0.5) 
             : name(name), def(def), min(min), max(max), current(def) {}
 
         // Copy constructor
@@ -282,22 +282,29 @@ namespace giml {
     };
 
     /**
-     * @brief Boolean parameter (0.0 or 1.0)
+     * @brief Boolean parameter that works with Effect<T> but stores boolean values
      */
     template <typename T>
     class BoolParam : public ParamMeta<T> {
     public:
-        using ParamMeta<T>::operator=;
-        
-        BoolParam(const std::string& name, T def)
-            : ParamMeta<T>(name, def, T(0.0), T(1.0)) {}
+        BoolParam(const std::string& name, bool def = false)
+            : ParamMeta<T>(name, def ? T(1) : T(0), T(0), T(1)) {}
 
-        bool operator()() const { return bool(this->current); }    
+        bool operator()() const { return this->current > T(0.5); }    
 
         void setValue(T val) override {
-            // Convert to boolean (0.0 or 1.0)
-            this->current = val > 0.5 ? T(1.0) : T(0.0);
+            // Convert to boolean logic: anything > 0.5 is true
+            this->current = (val > T(0.5)) ? T(1) : T(0);
         }
+
+        // Assignment from boolean values
+        BoolParam& operator=(bool val) {
+            setValue(val ? T(1) : T(0));
+            return *this;
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
     };
 
     /**

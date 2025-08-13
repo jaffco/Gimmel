@@ -102,7 +102,7 @@ namespace giml {
             this->setBlend(blend);
         }
 
-        void updateParams() {
+        void updateParams() override {
             this->setParams(this->pitchRatio(), this->windowSizeMillis(), this->blend());
         }
 
