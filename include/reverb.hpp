@@ -192,7 +192,7 @@ namespace giml {
          * @param in floating-point type input
          * @return T floating-point (float or double) output
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
 
             //this->delayLineInput.writeSample(in);
             if (!(this->enabled)) { return in; }

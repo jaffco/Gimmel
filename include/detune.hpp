@@ -70,7 +70,7 @@ namespace giml {
          * @return past input value. Changes in temporal distance from current sample
          * create pitch-shifting via the doppler effect 
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
 
             // bypass behavior 
             this->buffer.writeSample(in); // write sample to delay buffer

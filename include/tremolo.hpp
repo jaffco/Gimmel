@@ -54,7 +54,7 @@ namespace giml {
          * @param in current sample
          * @return `in` enveloped by `osc`
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
             if (!this->enabled) { return in; }
             T gain = this->osc.processSample() * 2 - 1; // waveshape SinOsc output to make it unipolar
             gain *= this->depth(); // scale by depth

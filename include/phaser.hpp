@@ -79,7 +79,7 @@ namespace giml {
          * @return mix of current input and last output with time-varying comb filter
          * @todo optimize SVF.setParams() call
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
 
             last = giml::linMix<T>(in, last, this->feedback());
             if (!this->enabled) { return in; }
