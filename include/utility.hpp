@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <complex>
 #include <string>
+#include <vector>
 
 namespace giml {
     /**
@@ -387,7 +388,7 @@ namespace giml {
          * @param paramsArgs Variadic list of parameter references
          * @return Reference to this Effect for method chaining
          */
-        template <class... Args> 
+        template <typename... Args> 
         Effect& registerParameters(Args&... paramsArgs) {
             std::vector<ParamMeta<T>*> paramPtrs{&paramsArgs...};
             for (auto* param : paramPtrs) {
