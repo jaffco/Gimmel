@@ -13,21 +13,15 @@ namespace giml {
     class Tremolo : public Effect<T> {
     private:
         int sampleRate;
-        Param<T> speedMillis { "speedMillis" };
-        Param<T> depth { "depth" };
+        Param<T> speedMillis { "speedMillis", 50.0, 5000.0, 1000.0 };
+        Param<T> depth { "depth", 0.0, 1.0, 1.0 };
         giml::SinOsc<T> osc;
 
     public:
         // Constructor
         Tremolo() = delete;
         Tremolo (int samprate) : sampleRate(samprate), osc(samprate) {
-            this->speedMillis = Param<T>("speedMillis", 1000.0, 50.0, 5000.0);
-            this->osc.setFrequency(1000.0 / this->speedMillis());
-            this->params.push_back(&this->speedMillis);
-
-            this->depth = Param<T>("depth", 1.0, 0.0, 1.0);
-            this->params.push_back(&this->depth);
-
+            this->registerParameters(speedMillis, depth);
             this->updateParams();
         }
 
@@ -40,15 +34,18 @@ namespace giml {
             this->speedMillis = t.speedMillis;
             this->depth = t.depth;
             this->osc = t.osc;
+            this->registerParameters(speedMillis, depth);
         }
 
         // Copy assignment operator 
         Tremolo<T>& operator=(const Tremolo<T>& t) {
-            Effect<T>::operator=(t);
-            this->sampleRate = t.sampleRate;
-            this->speedMillis = t.speedMillis;
-            this->depth = t.depth;
-            this->osc = t.osc;
+            if (this != &t) {
+                Effect<T>::operator=(t);
+                this->sampleRate = t.sampleRate;
+                this->speedMillis = t.speedMillis;
+                this->depth = t.depth;
+                this->osc = t.osc;
+            }
             return *this;
         }
 
@@ -72,7 +69,7 @@ namespace giml {
             this->setDepth(depth);
         }
 
-        void updateParams() {
+        void updateParams() override {
             this->setParams(this->speedMillis(), this->depth());
         }
 

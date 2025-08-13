@@ -173,76 +173,130 @@ namespace giml {
         return gVal;
     }
 
+    /**
+     * @brief Base class for parameters with common functionality
+     */
     template <typename T>
-    struct Param {
-        enum TYPE : unsigned int {
-            CONTINUOUS = 0,
-            CHOICE = 1,
-            BOOL = 2
-        };
-
+    class ParamMeta {
+    protected:
         T def, min, max, current;
-        TYPE type;
         std::string name;
 
-        Param() = delete;
-        Param( std::string name, T def = 0.5, T min = 0.0, T max = 1.0, TYPE type = CONTINUOUS) {
-            this->name = name;
-            this->type = type;
-            this->def = def;
-            this->min = min;
-            this->max = max;
-            this->current = def;
-        }
+    public:
+        ParamMeta() = delete;
+        
+        ParamMeta(const std::string& name, T def = 0.5, T min = 0.0, T max = 1.0) 
+            : name(name), def(def), min(min), max(max), current(def) {}
 
         // Copy constructor
-        Param(const Param& p) {
-            this->name = p.name;
-            this->type = p.type;
-            this->current = p.current;
-            this->def = p.def;
-            this->min = p.min;
-            this->max = p.max;
-            this->def = p.def;
-        }
+        ParamMeta(const ParamMeta& p) 
+            : name(p.name), def(p.def), min(p.min), max(p.max), current(p.current) {}
         
-        // Copy assignment constructor
-        Param& operator=(const Param& p) {
-            this->name = p.name;
-            this->type = p.type;
-            this->current = p.current;
-            this->def = p.def;
-            this->min = p.min;
-            this->max = p.max;
-            this->def = p.def;
+        // Copy assignment operator
+        ParamMeta& operator=(const ParamMeta& p) {
+            if (this != &p) {
+                this->name = p.name;
+                this->def = p.def;
+                this->min = p.min;
+                this->max = p.max;
+                this->current = p.current;
+            }
             return *this;
         }
 
+        virtual ~ParamMeta() = default;
+
         // Operator overload to get current value
-        T operator()() { return this->current; }
+        T operator()() const { return this->current; }
+
+        // Pure virtual function for type-specific assignment behavior
+        virtual void setValue(T val) = 0;
 
         // Operator overload to set current value with type-specific behavior
-        void operator=(T val) {
-            switch (this->type) {
-                case TYPE::CONTINUOUS:
-                    // Standard clamping for continuous values
-                    if (val < this->min) { val = this->min; }
-                    if (val > this->max) { val = this->max; }
-                    this->current = val;
-                    break;
+        ParamMeta& operator=(T val) { 
+            setValue(val); 
+            return *this;
+        }
 
-                case TYPE::CHOICE:
-                    // Round to nearest integer for discrete values
-                    if (val < this->min) { val = this->min; }
-                    if (val > this->max) { val = this->max; }
-                    this->current = round(val);
-                    break;
+        // Getters
+        const std::string& getName() const { return name; }
+        T getDefault() const { return def; }
+        T getMin() const { return min; }
+        T getMax() const { return max; }
+        T getCurrent() const { return current; }
 
-                case TYPE::BOOL:
-                    // Convert to boolean (0.0 or 1.0)
-                    this->current = val > 0.5 ? 1.0 : 0.0;
-                    break;
-            }
+        // Setters for range
+        void setRange(T newMin, T newMax) {
+            min = newMin;
+            max = newMax;
+            setValue(current); // Re-validate current value
+        }
+    };
+
+    /**
+     * @brief Continuous parameter with standard clamping
+     */
+    template <typename T>
+    class ContinuousParam : public ParamMeta<T> {
+    public:
+        ContinuousParam(const std::string& name, T min, T max, T def)
+            : ParamMeta<T>(name, def, min, max) {}
+
+        void setValue(T val) override {
+            // Standard clamping for continuous values
+            if (val < this->min) { val = this->min; }
+            if (val > this->max) { val = this->max; }
+            this->current = val;
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
+     * @brief Type alias for backward compatibility
+     */
+    template <typename T>
+    using Param = ContinuousParam<T>;
+
+    /**
+     * @brief Choice parameter with rounding to nearest integer
+     */
+    template <typename T>
+    class ChoiceParam : public ParamMeta<T> {
+    public:
+        ChoiceParam(const std::string& name, T min, T max, T def)
+            : ParamMeta<T>(name, def, min, max) {}
+
+        int operator()() const { return int(this->current); }    
+
+        void setValue(T val) override {
+            // Round to nearest integer for discrete values
+            if (val < this->min) { val = this->min; }
+            if (val > this->max) { val = this->max; }
+            this->current = round(val);
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
+     * @brief Boolean parameter (0.0 or 1.0)
+     */
+    template <typename T>
+    class BoolParam : public ParamMeta<T> {
+    public:
+        using ParamMeta<T>::operator=;
+        
+        BoolParam(const std::string& name, T def)
+            : ParamMeta<T>(name, def, T(0.0), T(1.0)) {}
+
+        bool operator()() const { return bool(this->current); }    
+
+        void setValue(T val) override {
+            // Convert to boolean (0.0 or 1.0)
+            this->current = val > 0.5 ? T(1.0) : T(0.0);
         }
     };
 
@@ -264,7 +318,7 @@ namespace giml {
     class Effect {
     protected:
         bool enabled = false;
-        std::vector<Param<T>*> params;    
+        std::vector<ParamMeta<T>*> params;    
 
     public:
         Effect() {}
@@ -305,16 +359,38 @@ namespace giml {
 
         inline void setParam(const std::string& name, T value) {
             for (auto* p : this->params) {
-                if (p->name == name) {  // Compare strings directly
-                    *p = value;         // Assign using operator= of Param
+                if (p->getName() == name) {  // Use getter method
+                    *p = value;              // Assign using operator= of ParamMeta
                     return; // return once param is found 
                 }
             }
             printf("Param %s not found!\n", name.c_str());
         }
 
+        /**
+         * @brief Register a single parameter
+         * @param param Reference to the parameter to register
+         */
+        inline void registerParameter(ParamMeta<T>& param) {
+            this->params.push_back(&param);
+        }
+
+        /**
+         * @brief Allows registering any number of parameters on a single line
+         * @param paramsArgs Variadic list of parameter references
+         * @return Reference to this Effect for method chaining
+         */
+        template <class... Args> 
+        Effect& registerParameters(Args&... paramsArgs) {
+            std::vector<ParamMeta<T>*> paramPtrs{&paramsArgs...};
+            for (auto* param : paramPtrs) {
+                this->params.push_back(param);
+            }
+            return *this;
+        }
+
         inline virtual void updateParams() {}
-        inline const std::vector<Param<T>*>& getParams() const { return this->params; }
+        inline const std::vector<ParamMeta<T>*>& getParams() const { return this->params; }
     };
 
     /**

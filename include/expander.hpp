@@ -15,12 +15,12 @@ namespace giml {
         int sampleRate;
         T aAttack = 0.0; // attack coefficient
         T aRelease = 0.0; // release coefficient
-        Param<T> thresh_dB { "threshold" };
-        Param<T> ratio { "ratio" };
-        Param<T> knee_dB { "knee" };
-        Param<T> attackMillis { "attackMillis" };
-        Param<T> releaseMillis { "releasMillis" };
-        Param<T> sideChainEnabled { "sideChainEnabled" };
+        Param<T> thresh_dB { "threshold", -60.0, 0.0, 0.0 };
+        Param<T> ratio { "ratio", 1.0, 20.0, 4.0 };
+        Param<T> knee_dB { "knee", 0.001, 10.0, 2.0 };
+        Param<T> attackMillis { "attackMillis", 0.0, 100.0, 3.5 };
+        Param<T> releaseMillis { "releaseMillis", 0.0, 300.0, 100.0 };
+        BoolParam<T> sideChainEnabled { "sideChainEnabled", 0.0 };
         dBDetector<T> detector; // dB detector
         T sideChainLastIn = 0.0;
 
@@ -60,24 +60,7 @@ namespace giml {
         // Constructor
         Expander() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
         Expander(int sampleRate) : sampleRate(sampleRate) {
-            this->thresh_dB = Param<T>("threshold", 0.0, -60.0, 0.0);
-            this->params.push_back(&this->thresh_dB);
-            
-            this->ratio = Param<T>("ratio", 4.0, 1.0, 20.0);
-            this->params.push_back(&this->ratio);
-            
-            this->knee_dB = Param<T>("knee", 2.0, 0.001, 10.0);
-            this->params.push_back(&this->knee_dB);
-            
-            this->attackMillis = Param<T>("attackMillis", 3.5, 0.0, 100);
-            this->params.push_back(&this->attackMillis);
-            
-            this->releaseMillis = Param<T>("releaseMillis", 100, 0.0, 300);  
-            this->params.push_back(&this->releaseMillis);
-
-            this->sideChainEnabled = Param<T>("sideChainEnabled", 0.0, 0.0, 1.0, Param<T>::BOOL);
-            this->params.push_back(&this->sideChainEnabled);
-            
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, sideChainEnabled);
             this->updateParams();
         }
         
@@ -85,34 +68,37 @@ namespace giml {
         ~Expander() {}
 
         // Copy constructor
-        Expander(const Expander<T>& c) : Effect<T>(c),
-            sampleRate(c.sampleRate),
-            thresh_dB(c.thresh_dB),
-            ratio(c.ratio),
-            knee_dB(c.knee_dB),
-            aRelease(c.aRelease),
-            aAttack(c.aAttack),
-            attackMillis(c.attackMillis),
-            releaseMillis(c.releaseMillis),
-            detector(c.detector), // Copy detector state
-            sideChainEnabled(c.sideChainEnabled),
-            sideChainLastIn(c.sideChainLastIn)
-        {}
-
-        // Copy assignment operator 
-        Expander<T>& operator=(const Expander<T>& c) {
-            Effect<T>::operator=(c);
+        Expander(const Expander<T>& c) : Effect<T>(c) {
             this->sampleRate = c.sampleRate;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
             this->thresh_dB = c.thresh_dB;
             this->ratio = c.ratio;
             this->knee_dB = c.knee_dB;
             this->attackMillis = c.attackMillis;
             this->releaseMillis = c.releaseMillis;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
-            this->detector = c.detector; // Assign detector state
             this->sideChainEnabled = c.sideChainEnabled;
+            this->detector = c.detector;
             this->sideChainLastIn = c.sideChainLastIn;
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, sideChainEnabled);
+        }
+
+        // Copy assignment operator 
+        Expander<T>& operator=(const Expander<T>& c) {
+            if (this != &c) {
+                Effect<T>::operator=(c);
+                this->sampleRate = c.sampleRate;
+                this->thresh_dB = c.thresh_dB;
+                this->ratio = c.ratio;
+                this->knee_dB = c.knee_dB;
+                this->attackMillis = c.attackMillis;
+                this->releaseMillis = c.releaseMillis;
+                this->aAttack = c.aAttack;
+                this->aRelease = c.aRelease;
+                this->detector = c.detector; // Assign detector state
+                this->sideChainEnabled = c.sideChainEnabled;
+                this->sideChainLastIn = c.sideChainLastIn;
+            }
             return *this;
         }
 

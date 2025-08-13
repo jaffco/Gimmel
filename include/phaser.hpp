@@ -18,8 +18,8 @@ namespace giml {
     private:
         int sampleRate;
         size_t numStages = 0;
-        Param<T> rate { "rate" };
-        Param<T> feedback { "feedback" };
+        Param<T> rate { "rate", 0.01, 10.0, 0.5 };
+        Param<T> feedback { "feedback", -1.0, 1.0, 0.85 };
         T last = 0.0;
         giml::TriOsc<T> osc;
         giml::DynamicArray<giml::SVF<T>> filterbank;
@@ -29,12 +29,7 @@ namespace giml {
         // Constructor
         Phaser() = delete;
         Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
-            this->rate = Param<T>("rate", 0.5, 0.01, 10.0);
-            this->osc.setFrequency(this->rate());
-            this->params.push_back(&this->rate);
-            
-            this->feedback = Param<T>("feedback", 0.85, -1.0, 1.0);
-            this->params.push_back(&this->feedback);
+            this->registerParameters(rate, feedback);
             
             for (size_t stage = 0; stage < numStages; stage++) {
                 filterbank.pushBack(giml::SVF<T>(samprate));
@@ -59,19 +54,22 @@ namespace giml {
             this->osc = p.osc;
             this->filterbank = p.filterbank;
             this->centerFreqs = p.centerFreqs;
+            this->registerParameters(rate, feedback);
         }
 
         // Copy assignment operator 
         Phaser<T>& operator=(const Phaser<T>& p) {
-            Effect<T>::operator=(p);
-            this->sampleRate = p.sampleRate;
-            this->numStages = p.numStages;
-            this->rate = p.rate;
-            this->feedback = p.feedback;
-            this->last = p.last;
-            this->osc = p.osc;
-            this->filterbank = p.filterbank;
-            this->centerFreqs = p.centerFreqs;
+            if (this != &p) {
+                Effect<T>::operator=(p);
+                this->sampleRate = p.sampleRate;
+                this->numStages = p.numStages;
+                this->rate = p.rate;
+                this->feedback = p.feedback;
+                this->last = p.last;
+                this->osc = p.osc;
+                this->filterbank = p.filterbank;
+                this->centerFreqs = p.centerFreqs;
+            }
             return *this;
         }
 
@@ -108,7 +106,7 @@ namespace giml {
             this->setFeedback(feedback);
         }
 
-        void updateParams() {
+        void updateParams() override {
             this->setParams(this->rate(), this->feedback());
         }
 

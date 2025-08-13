@@ -14,12 +14,12 @@ namespace giml {
         int sampleRate;
         T aAttack = 0.0; // attack coefficient
         T aRelease = 0.0; // release coefficient
-        Param<T> thresh_dB { "threshold" };
-        Param<T> ratio { "ratio" };
-        Param<T> knee_dB { "knee" };
-        Param<T> attackMillis { "attackMillis" };
-        Param<T> releaseMillis { "releaseMillis" };
-        Param<T> makeupGain_dB { "makeupGain" };
+        Param<T> thresh_dB { "threshold", -60.0, 0.0, 0.0 };
+        Param<T> ratio { "ratio", 1.1, 20.0, 4.0 };
+        Param<T> knee_dB { "knee", 0.001, 10.0, 1.0 };
+        Param<T> attackMillis { "attackMillis", 0.0, 100.0, 3.5 };
+        Param<T> releaseMillis { "releaseMillis", 0.0, 300.0, 100.0 };
+        Param<T> makeupGain_dB { "makeupGain", -20.0, 20.0, 0.0 };
         dBDetector<T> detector; // dB detector
 
     protected: 
@@ -53,24 +53,7 @@ namespace giml {
         // Constructor
         Compressor() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
         Compressor(int sampleRate) : sampleRate(sampleRate) {
-            this->thresh_dB = Param<T>("threshold", 0.0, -60.0, 0.0);
-            this->params.push_back(&this->thresh_dB);
-            
-            this->ratio = Param<T>("ratio", 4.0, 1.1, 20.0);
-            this->params.push_back(&this->ratio);
-            
-            this->knee_dB = Param<T>("knee", 1.0, 0.001, 10.0);
-            this->params.push_back(&this->knee_dB);
-            
-            this->attackMillis = Param<T>("attackMillis", 3.5, 0.0, 100);  // Coefficient value
-            this->params.push_back(&this->attackMillis);
-            
-            this->releaseMillis = Param<T>("releaseMillis", 100.0, 0.0, 300);  // Coefficient value
-            this->params.push_back(&this->releaseMillis);
-            
-            this->makeupGain_dB = Param<T>("makeupGain", 0.0, -20.0, 20.0);
-            this->params.push_back(&this->makeupGain_dB);
-            
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, makeupGain_dB);
             this->updateParams();
         }
         
@@ -89,23 +72,24 @@ namespace giml {
             this->releaseMillis = c.releaseMillis;
             this->makeupGain_dB = c.makeupGain_dB;
             this->detector = c.detector;
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, makeupGain_dB);
         }
 
         // Copy assignment operator 
         Compressor<T>& operator=(const Compressor<T>& c) {
-            Effect<T>::operator=(c);
-            this->sampleRate = c.sampleRate;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
-            this->thresh_dB = c.thresh_dB;
-            this->ratio = c.ratio;
-            this->knee_dB = c.knee_dB;
-            this->attackMillis = c.attackMillis;
-            this->releaseMillis = c.releaseMillis;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
-            this->makeupGain_dB = c.makeupGain_dB;
-            this->detector = c.detector;
+            if (this != &c) {
+                Effect<T>::operator=(c);
+                this->sampleRate = c.sampleRate;
+                this->aAttack = c.aAttack;
+                this->aRelease = c.aRelease;
+                this->thresh_dB = c.thresh_dB;
+                this->ratio = c.ratio;
+                this->knee_dB = c.knee_dB;
+                this->attackMillis = c.attackMillis;
+                this->releaseMillis = c.releaseMillis;
+                this->makeupGain_dB = c.makeupGain_dB;
+                this->detector = c.detector;
+            }
             return *this;
         }
 

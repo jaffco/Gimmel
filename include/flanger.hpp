@@ -18,9 +18,9 @@ namespace giml {
     private:
         int sampleRate;
         T depth;
-        Param<T> rate { "rate" };
-        Param<T> depthMillis { "depthMillis" };
-        Param<T> blend { "blend" };
+        Param<T> rate { "rate", 0.0, 20.0, 0.2 };
+        Param<T> depthMillis { "depthMillis", 0.0, 10.0, 5.0 };
+        Param<T> blend { "blend", 0.0, 1.0, 0.5 };
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
 
@@ -35,17 +35,12 @@ namespace giml {
          * See Effect Design Part II - Jon Dattorro 1997 Table 7 
          */
         Flanger (int samprate, T maxDepthMillis = 10.0) : sampleRate(samprate), osc(samprate) {
-            this->rate = Param<T>("rate", 0.2, 0.0, 20.0);
-            this->osc.setFrequency(this->rate());
-            this->params.push_back(&this->rate);
+            // Update max range for depthMillis parameter
+            this->depthMillis.setRange(0.0, maxDepthMillis);
+            
+            this->registerParameters(rate, depthMillis, blend);
             
             T maxDepthSamples = giml::millisToSamples(maxDepthMillis, samprate);
-            this->depthMillis = Param<T>("depthMillis", giml::millisToSamples(5.0, samprate), 0.0, maxDepthSamples);
-            this->params.push_back(&this->depthMillis);
-            
-            this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
-            this->params.push_back(&this->blend);
-            
             this->buffer.allocate(maxDepthSamples); // max delay is 10ms
 
             this->updateParams();
@@ -63,18 +58,21 @@ namespace giml {
             this->blend = f.blend;
             this->buffer = f.buffer;
             this->osc = f.osc;
+            this->registerParameters(rate, depthMillis, blend);
         }
 
         // Copy assignment operator 
         Flanger<T>& operator=(const Flanger<T>& f) {
-            Effect<T>::operator=(f);
-            this->sampleRate = f.sampleRate;
-            this->rate = f.rate;
-            this->depth = f.depth;
-            this->depthMillis = f.depthMillis;
-            this->blend = f.blend;
-            this->buffer = f.buffer;
-            this->osc = f.osc;
+            if (this != &f) {
+                Effect<T>::operator=(f);
+                this->sampleRate = f.sampleRate;
+                this->rate = f.rate;
+                this->depth = f.depth;
+                this->depthMillis = f.depthMillis;
+                this->blend = f.blend;
+                this->buffer = f.buffer;
+                this->osc = f.osc;
+            }
             return *this;
         }
 

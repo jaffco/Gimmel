@@ -18,28 +18,19 @@ namespace giml {
     private:
         int sampleRate;
         T windowSize;
-        Param<T> pitchRatio { "pitchRatio" };
-        Param<T> windowSizeMillis { "windowSizeMillis" };
-        Param<T> blend { "blend" };
+        Param<T> pitchRatio { "pitchRatio", 0.5, 2.0, 1.0 };
+        Param<T> windowSizeMillis { "windowSizeMillis", 10.0, 300.0, 22.0 };
+        Param<T> blend { "blend", 0.0, 1.0, 0.5 };
         giml::CircularBuffer<T> buffer;
         giml::Phasor<T> osc;
 
     public:
         // Constructor
         Detune() = delete;
-        Detune(int samprate, float maxWindowMillis = 300.0) : sampleRate(samprate), osc(samprate) {
-            this->pitchRatio = Param<T>("pitchRatio", 1.0, 0.5, 2.0);
-            this->params.push_back(&this->pitchRatio);
-            
-            this->windowSizeMillis = Param<T>("windowSizeMillis", 22.0, 10.0, maxWindowMillis);
-            this->params.push_back(&this->windowSizeMillis);
-            
-            this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
-            this->params.push_back(&this->blend);
-            
-            this->osc.setFrequency(1000.0 * ((1.0 - this->pitchRatio()) / this->windowSizeMillis()));
-            this->buffer.allocate(giml::millisToSamples(maxWindowMillis, samprate));
-
+        Detune(int samprate) : sampleRate(samprate), osc(samprate) {
+            // Update max range for windowSizeMillis parameter
+            this->registerParameters(pitchRatio, windowSizeMillis, blend);
+            this->buffer.allocate(giml::millisToSamples(300, samprate));
             this->updateParams();
         }
 
@@ -55,18 +46,21 @@ namespace giml {
             this->blend = d.blend;
             this->buffer = d.buffer;
             this->osc = d.osc;
+            this->registerParameters(pitchRatio, windowSizeMillis, blend);
         }
 
         // Copy assignment operator 
         Detune<T>& operator=(const Detune<T>& d) {
-            Effect<T>::operator=(d);
-            this->sampleRate = d.sampleRate;
-            this->pitchRatio = d.pitchRatio;
-            this->windowSize = d.windowSize;
-            this->windowSizeMillis = d.windowSizeMillis;
-            this->blend = d.blend;
-            this->buffer = d.buffer;
-            this->osc = d.osc;
+            if (this != &d) {
+                Effect<T>::operator=(d);
+                this->sampleRate = d.sampleRate;
+                this->pitchRatio = d.pitchRatio;
+                this->windowSize = d.windowSize;
+                this->windowSizeMillis = d.windowSizeMillis;
+                this->blend = d.blend;
+                this->buffer = d.buffer;
+                this->osc = d.osc;
+            }
             return *this;
         }
 
@@ -96,7 +90,7 @@ namespace giml {
             T windowTwo = cos((phase2 - 0.5) * M_PI);// ^
             
             T out = output * windowOne + output2 * windowTwo; // windowed output
-            return giml::linMix(in, out, this->blend()); 
+            return giml::powMix<T>(in, out, this->blend()); 
         }
 
         /**

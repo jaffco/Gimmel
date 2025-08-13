@@ -17,16 +17,13 @@ namespace giml {
     private:
         int sampleRate;
         T offset, depth;
-        Param<T> rate { "rate" };
-        Param<T> depthMillis { "depthMillis" };
-        Param<T> blend { "blend" };
+        Param<T> rate { "rate" , 0.0, 20.0, 0.2 };
+        Param<T> depthMillis { "depthMillis", 0.0, 45.0, 15.0 };
+        Param<T> blend { "blend", 0.0, 1.0, 0.5 };
         giml::CircularBuffer<T> buffer;
         giml::TriOsc<T> osc;
 
     public:
-        // Constructor
-        Chorus() = delete;
-
         /**
          * @brief constructor that sets max delay to 50ms, 
          * the border of the `transition band` where delays begin 
@@ -34,23 +31,15 @@ namespace giml {
          * 
          * See Microsound - Curtis Roads 2004 Figure 1.1
          */
-        Chorus (int samprate, float maxDepthMillis = 50.f) : sampleRate(samprate), osc(samprate) {
-
-            this->rate = Param<T>("rate", 0.2, 0.0, 20.0);
-            this->osc.setFrequency(this->rate());
-            this->params.push_back(&this->rate);
-
-            this->depthMillis = Param<T>("depthMillis", 15.0, 0.0, maxDepthMillis);
-            this->buffer.allocate(giml::millisToSamples(maxDepthMillis, samprate)); // max delay is 50ms 
-            this->params.push_back(&this->depthMillis);
-
-            this->blend = Param<T>("blend", 0.5, 0.0, 1.0);
-            this->params.push_back(&this->blend);
-
+        Chorus (int samprate) : sampleRate(samprate), osc(samprate) {
+            this->registerParameters(rate, depthMillis, blend);
+            this->buffer.allocate(giml::millisToSamples(depthMillis.getMax() + 5.0, samprate)); // max delay is 50ms 
             this->updateParams();
         }
+        Chorus() = delete; // Delete default constructor
+        
 
-        // Destructor
+        // Default destructor
         ~Chorus() {}
 
         // Copy constructor
@@ -63,19 +52,22 @@ namespace giml {
             this->offset = c.offset;
             this->buffer = c.buffer;
             this->osc = c.osc;
+            this->registerParameters(rate, depthMillis, blend);
         }
 
         // Copy assignment operator 
         Chorus<T>& operator=(const Chorus<T>& c) {
-            Effect<T>::operator=(c);
-            this->sampleRate = c.sampleRate;
-            this->rate = c.rate;
-            this->depthMillis = c.depthMillis;
-            this->depth = c.depth;
-            this->blend = c.blend;
-            this->offset = c.offset;            
-            this->buffer = c.buffer;
-            this->osc = c.osc;
+            if (this != &c) {
+                Effect<T>::operator=(c);
+                this->sampleRate = c.sampleRate;
+                this->rate = c.rate;
+                this->depthMillis = c.depthMillis;
+                this->depth = c.depth;
+                this->blend = c.blend;
+                this->offset = c.offset;            
+                this->buffer = c.buffer;
+                this->osc = c.osc;
+            }
             return *this;
         }
 
@@ -94,7 +86,7 @@ namespace giml {
             // y_n = x_{n - (offset + osc_n * depth)}
             float readIndex = this->offset + this->osc.processSample() * this->depth;
             T wet = this->buffer.readSample(readIndex);
-            return giml::powMix<float>(in, wet, this->blend()); // return mix
+            return giml::powMix<T>(in, wet, this->blend()); // return mix
         }
 
         /**
