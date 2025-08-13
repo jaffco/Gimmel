@@ -10,24 +10,16 @@ namespace giml {
     template <typename T>
     class Saturation : public Effect<T> {
     private:
-        Param<T> drive { "drive" };
-        Param<T> preAmpGain { "preAmpGain" };
-        Param<T> volume { "volume" };
+        Param<T> drive { "drive", 0.001, 50.0, 1.0 };
+        Param<T> preAmpGain { "preAmpGain", 0.001, 10.0, 1.0 };
+        Param<T> volume { "volume", 0.0, 2.0, 1.0 };
         int sampleRate, oversamplingFactor;
         Biquad<T> antiAliasingFilter;
         T prevX = 0;
 
     public:
         Saturation(int sampleRate, int oversamplingFactor = 1) : sampleRate(sampleRate), oversamplingFactor(oversamplingFactor), antiAliasingFilter(Biquad<T>{sampleRate})  {
-            this->drive = Param<T>("drive", 1.0, 0.001, 50.0);
-            this->params.push_back(&this->drive);
-            
-            this->preAmpGain = Param<T>("preAmpGain", 1.0, 0.001, 10.0);
-            this->params.push_back(&this->preAmpGain);
-            
-            this->volume = Param<T>("volume", 1.0, 0.0, 2.0);
-            this->params.push_back(&this->volume);
-            
+            this->registerParameters(drive, preAmpGain, volume);
             this->antiAliasingFilter.setType(Biquad<T>::BiquadUseCase::LPF_2nd);
             this->antiAliasingFilter.setParams(this->sampleRate * oversamplingFactor / 2); //TODO: Verify this cutoff frequency
         }
