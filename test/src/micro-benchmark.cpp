@@ -191,13 +191,6 @@ int main() {
         benchmarkEffect("Reverb", effect, TEST_INPUT);
     }
     
-    std::cout << "\n=== SATURATION ===" << std::endl;
-    {
-        auto effect = std::make_unique<giml::Saturation<float>>(SAMPLE_RATE);
-        // Note: Saturation might not have a setParams method
-        benchmarkEffect("Saturation", effect, TEST_INPUT);
-    }
-    
     std::cout << "\n=== TREMOLO ===" << std::endl;
     {
         auto effect = std::make_unique<giml::Tremolo<float>>(SAMPLE_RATE);

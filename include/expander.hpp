@@ -13,10 +13,15 @@ namespace giml {
     class Expander : public Effect<T> {
     private:
         int sampleRate;
-        T thresh_dB = 0.0, ratio = 4.0, knee_dB = 2.0, 
-        aRelease = 3.5, aAttack = 100.0;
+        T aAttack = 0.0; // attack coefficient
+        T aRelease = 0.0; // release coefficient
+        Param<T> thresh_dB { "threshold", -60.0, 0.0, 0.0 };
+        Param<T> ratio { "ratio", 1.0, 20.0, 4.0 };
+        Param<T> knee_dB { "knee", 0.001, 10.0, 2.0 };
+        Param<T> attackMillis { "attackMillis", 0.0, 100.0, 3.5 };
+        Param<T> releaseMillis { "releaseMillis", 0.0, 300.0, 100.0 };
+        BoolParam<T> sideChainEnabled { "sideChainEnabled", false };
         dBDetector<T> detector; // dB detector
-        bool sideChainEnabled = false;
         T sideChainLastIn = 0.0;
 
     protected: 
@@ -54,41 +59,53 @@ namespace giml {
     public:
         // Constructor
         Expander() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
-        Expander(int sampleRate) : sampleRate(sampleRate) {}
+        Expander(int sampleRate) : sampleRate(sampleRate) {
+            this->name = "Expander";
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, sideChainEnabled);
+            this->updateParams();
+        }
         
         // Destructor
         ~Expander() {}
 
         // Copy constructor
-        Expander(const Expander<T>& c) : 
-            sampleRate(c.sampleRate),
-            thresh_dB(c.thresh_dB),
-            ratio(c.ratio),
-            knee_dB(c.knee_dB),
-            aRelease(c.aRelease),
-            aAttack(c.aAttack),
-            detector(c.detector), // Copy detector state
-            sideChainEnabled(c.sideChainEnabled),
-            sideChainLastIn(c.sideChainLastIn)
-        {}
-
-        // Copy assignment operator 
-        Expander<T>& operator=(const Expander<T>& c) {
+        Expander(const Expander<T>& c) : Effect<T>(c) {
             this->sampleRate = c.sampleRate;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
             this->thresh_dB = c.thresh_dB;
             this->ratio = c.ratio;
             this->knee_dB = c.knee_dB;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
-            this->detector = c.detector; // Assign detector state
+            this->attackMillis = c.attackMillis;
+            this->releaseMillis = c.releaseMillis;
             this->sideChainEnabled = c.sideChainEnabled;
+            this->detector = c.detector;
             this->sideChainLastIn = c.sideChainLastIn;
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, sideChainEnabled);
+        }
+
+        // Copy assignment operator 
+        Expander<T>& operator=(const Expander<T>& c) {
+            if (this != &c) {
+                Effect<T>::operator=(c);
+                this->sampleRate = c.sampleRate;
+                this->thresh_dB = c.thresh_dB;
+                this->ratio = c.ratio;
+                this->knee_dB = c.knee_dB;
+                this->attackMillis = c.attackMillis;
+                this->releaseMillis = c.releaseMillis;
+                this->aAttack = c.aAttack;
+                this->aRelease = c.aRelease;
+                this->detector = c.detector; // Assign detector state
+                this->sideChainEnabled = c.sideChainEnabled;
+                this->sideChainLastIn = c.sideChainLastIn;
+            }
             return *this;
         }
 
         inline T compute(const T& in) {
             T x_dB = giml::aTodB(in); // x_dB (convert input to log domain)
-            T x_sc = computeGain(x_dB, this->thresh_dB, this->ratio, this->knee_dB); // x_sc (target gain from input)
+            T x_sc = computeGain(x_dB, this->thresh_dB(), this->ratio(), this->knee_dB()); // x_sc (target gain from input)
             T g_c = x_sc - x_dB; // xL (calculate difference from target gain)
             T g_s = this->detector(g_c, this->aAttack, this->aRelease); // g_s (smoothing of output gain)
             T gain = giml::dBtoA(g_s); // lin()
@@ -110,7 +127,7 @@ namespace giml {
          */
         inline T processSample(const T& in) override {
             if (!this->enabled) { return in; }
-            if (this->sideChainEnabled) {
+            if (this->sideChainEnabled()) {
                 return in * compute(this->sideChainLastIn); // apply gain reduction
             }
             return in * compute(in);
@@ -127,6 +144,11 @@ namespace giml {
             this->setKnee(knee);
             this->setAttack(attack);
             this->setRelease(release);
+        }
+
+        void updateParams() override {
+            this->setParams(this->thresh_dB(), this->ratio(), this->knee_dB(),
+                            this->attackMillis(), this->releaseMillis());
         }
 
         /**

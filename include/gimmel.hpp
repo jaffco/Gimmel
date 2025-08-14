@@ -10,6 +10,5 @@
 #include "oscillator.hpp"
 #include "phaser.hpp"
 #include "reverb.hpp"
-#include "saturation.hpp"
 #include "tremolo.hpp"
 #include "utility.hpp"

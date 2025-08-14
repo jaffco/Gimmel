@@ -12,8 +12,14 @@ namespace giml {
     class Compressor : public Effect<T> {
     private:
         int sampleRate;
-        T thresh_dB = 0.f, ratio = 2.f, knee_dB = 1.f, 
-        aRelease = 0.f, aAttack = 0.f, makeupGain_dB = 0.f;
+        T aAttack = 0.0; // attack coefficient
+        T aRelease = 0.0; // release coefficient
+        Param<T> thresh_dB { "threshold", -60.0, 0.0, 0.0 };
+        Param<T> ratio { "ratio", 1.1, 20.0, 4.0 };
+        Param<T> knee_dB { "knee", 0.001, 10.0, 1.0 };
+        Param<T> attackMillis { "attackMillis", 0.0, 100.0, 3.5 };
+        Param<T> releaseMillis { "releaseMillis", 0.0, 300.0, 100.0 };
+        Param<T> makeupGain_dB { "makeupGain", -20.0, 20.0, 0.0 };
         dBDetector<T> detector; // dB detector
 
     protected: 
@@ -46,33 +52,45 @@ namespace giml {
     public:
         // Constructor
         Compressor() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
-        Compressor(int sampleRate) : sampleRate(sampleRate) {}
+        Compressor(int sampleRate) : sampleRate(sampleRate) {
+            this->name = "Compressor";
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, makeupGain_dB);
+            this->updateParams();
+        }
         
         // Destructor
         ~Compressor() {}
 
         // Copy constructor
-        Compressor(const Compressor<T>& c) {
-            this->enabled = c.enabled;
+        Compressor(const Compressor<T>& c) : Effect<T>(c) {
             this->sampleRate = c.sampleRate;
+            this->aAttack = c.aAttack;
+            this->aRelease = c.aRelease;
             this->thresh_dB = c.thresh_dB;
             this->ratio = c.ratio;
             this->knee_dB = c.knee_dB;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
+            this->attackMillis = c.attackMillis;
+            this->releaseMillis = c.releaseMillis;
             this->makeupGain_dB = c.makeupGain_dB;
+            this->detector = c.detector;
+            this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, makeupGain_dB);
         }
 
         // Copy assignment operator 
         Compressor<T>& operator=(const Compressor<T>& c) {
-            this->enabled = c.enabled;
-            this->sampleRate = c.sampleRate;
-            this->thresh_dB = c.thresh_dB;
-            this->ratio = c.ratio;
-            this->knee_dB = c.knee_dB;
-            this->aAttack = c.aAttack;
-            this->aRelease = c.aRelease;
-            this->makeupGain_dB = c.makeupGain_dB;
+            if (this != &c) {
+                Effect<T>::operator=(c);
+                this->sampleRate = c.sampleRate;
+                this->aAttack = c.aAttack;
+                this->aRelease = c.aRelease;
+                this->thresh_dB = c.thresh_dB;
+                this->ratio = c.ratio;
+                this->knee_dB = c.knee_dB;
+                this->attackMillis = c.attackMillis;
+                this->releaseMillis = c.releaseMillis;
+                this->makeupGain_dB = c.makeupGain_dB;
+                this->detector = c.detector;
+            }
             return *this;
         }
 
@@ -85,10 +103,10 @@ namespace giml {
             if (!this->enabled) { return in; }
             
             T xG = giml::aTodB(in); // xG
-            T yG = computeGain(xG, this->thresh_dB, this->ratio, this->knee_dB); // yG
+            T yG = computeGain(xG, this->thresh_dB(), this->ratio(), this->knee_dB()); // yG
             T xL = xG - yG; // xL
             T yL = this->detector(xL, this->aAttack, this->aRelease); // yL
-            T cdB = this->makeupGain_dB - yL; // cdB = M - yL
+            T cdB = this->makeupGain_dB() - yL; // cdB = M - yL
 
             T gain = giml::dBtoA(cdB); // lin()
             return (in * gain); // apply gain
@@ -106,6 +124,11 @@ namespace giml {
             this->setKnee(knee);
             this->setAttack(attack);
             this->setRelease(release);
+        }
+
+        void updateParams() override {
+            this->setParams(this->thresh_dB(), this->ratio(), this->makeupGain_dB(),
+                            this->knee_dB(), this->attackMillis(), this->releaseMillis());
         }
 
         /**
