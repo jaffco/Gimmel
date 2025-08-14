@@ -26,7 +26,7 @@ namespace giml {
         EnvelopeFilter(int sampleRate) : sampleRate(sampleRate), 
                                          mVactrol(sampleRate), 
                                          mFilter(sampleRate) {
-
+            this->name = "EnvelopeFilter";
             this->registerParameters(qFactor, attackMillis, releaseMillis);               
             this->updateParams();
         }

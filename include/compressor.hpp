@@ -53,6 +53,7 @@ namespace giml {
         // Constructor
         Compressor() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
         Compressor(int sampleRate) : sampleRate(sampleRate) {
+            this->name = "Compressor";
             this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, makeupGain_dB);
             this->updateParams();
         }

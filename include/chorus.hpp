@@ -32,6 +32,7 @@ namespace giml {
          * See Microsound - Curtis Roads 2004 Figure 1.1
          */
         Chorus (int samprate) : sampleRate(samprate), osc(samprate) {
+            this->name = "Chorus";
             this->registerParameters(rate, depthMillis, blend);
             this->buffer.allocate(giml::millisToSamples(depthMillis.getMax() + 5.0, samprate)); // max delay is 50ms 
             this->updateParams();

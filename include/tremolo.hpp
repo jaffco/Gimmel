@@ -21,6 +21,7 @@ namespace giml {
         // Constructor
         Tremolo() = delete;
         Tremolo (int samprate) : sampleRate(samprate), osc(samprate) {
+            this->name = "Tremolo";
             this->registerParameters(speedMillis, depth);
             this->updateParams();
         }

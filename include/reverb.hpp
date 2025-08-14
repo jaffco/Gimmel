@@ -55,6 +55,7 @@ namespace giml {
         Reverb() = delete;
         Reverb(int sampleRate, int numBeforeAPFs = 2, int numCombFilters = 20, int numAfterAPFs = 2, int APFNestingDepth = 2) : sampleRate(sampleRate),
         numBeforeAPFs(numBeforeAPFs), numCombFilters(numCombFilters), numAfterAPFs(numAfterAPFs) {
+            this->name = "Reverb";
             this->registerParameters(time, regen, damping, length, blend, room);
             
             for (int i = 0; i < numBeforeAPFs; i++) {

@@ -35,6 +35,7 @@ namespace giml {
          * See Effect Design Part II - Jon Dattorro 1997 Table 7 
          */
         Flanger (int samprate, T maxDepthMillis = 10.0) : sampleRate(samprate), osc(samprate) {
+            this->name = "Flanger";
             // Update max range for depthMillis parameter
             this->depthMillis.setRange(0.0, maxDepthMillis);
             

@@ -29,6 +29,7 @@ namespace giml {
         // Constructor
         Phaser() = delete;
         Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
+            this->name = "Phaser";
             this->registerParameters(rate, feedback);
             
             for (size_t stage = 0; stage < numStages; stage++) {

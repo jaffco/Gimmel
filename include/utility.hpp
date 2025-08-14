@@ -326,6 +326,7 @@ namespace giml {
     class Effect {
     protected:
         bool enabled = false;
+        std::string name = "";
         std::vector<ParamMeta<T>*> params;    
 
     public:
@@ -335,6 +336,7 @@ namespace giml {
         // Copy constructor
         Effect(const Effect& other) {
             this->enabled = other.enabled;
+            this->name = other.name;
             this->params = other.params;
         }
 
@@ -342,6 +344,7 @@ namespace giml {
         Effect& operator=(const Effect& other) {
             if (this != &other) {
                 this->enabled = other.enabled;
+                this->name = other.name;
                 this->params = other.params;
             }
             return *this;
@@ -364,6 +367,8 @@ namespace giml {
         virtual void toggle(bool desiredState) { this->enabled = desiredState; }
 
         virtual inline T processSample(const T& in) { return in; }
+
+        inline const std::string& getName() const { return this->name; }
 
         inline void setParam(const std::string& name, T value) {
             for (auto* p : this->params) {

@@ -60,6 +60,7 @@ namespace giml {
         // Constructor
         Expander() = delete; // Do not allow an empty constructor, they must pass in a sampleRate
         Expander(int sampleRate) : sampleRate(sampleRate) {
+            this->name = "Expander";
             this->registerParameters(thresh_dB, ratio, knee_dB, attackMillis, releaseMillis, sideChainEnabled);
             this->updateParams();
         }

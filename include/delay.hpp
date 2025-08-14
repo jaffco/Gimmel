@@ -25,6 +25,7 @@ namespace giml {
         // Constructor
         Delay() = delete;
         Delay(int samprate, T maxDelayMillis = 3000) : sampleRate(samprate) {
+            this->name = "Delay";
             // Update max range for delayTime parameter
             this->delayTime.setRange(0.0, maxDelayMillis);
             

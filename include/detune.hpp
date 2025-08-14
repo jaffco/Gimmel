@@ -28,6 +28,7 @@ namespace giml {
         // Constructor
         Detune() = delete;
         Detune(int samprate) : sampleRate(samprate), osc(samprate) {
+            this->name = "Detune";
             // Update max range for windowSizeMillis parameter
             this->registerParameters(pitchRatio, windowSizeMillis, blend);
             this->buffer.allocate(giml::millisToSamples(300, samprate));
