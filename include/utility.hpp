@@ -241,7 +241,7 @@ namespace giml {
     class ContinuousParam : public ParamMeta<T> {
     public:
         ContinuousParam(const std::string& name, T min, T max, T def)
-            : ParamMeta<T>(name, def, min, max) {}
+            : ParamMeta<T>(name, min, max, def) {}
 
         void setValue(T val) override {
             // Standard clamping for continuous values
