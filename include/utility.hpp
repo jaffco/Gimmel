@@ -267,7 +267,7 @@ namespace giml {
     class ChoiceParam : public ParamMeta<T> {
     public:
         ChoiceParam(const std::string& name, T min, T max, T def)
-            : ParamMeta<T>(name, def, min, max) {}
+            : ParamMeta<T>(name, min, max, def) {}
 
         int operator()() const { return int(this->current); }    
 
@@ -289,7 +289,7 @@ namespace giml {
     class BoolParam : public ParamMeta<T> {
     public:
         BoolParam(const std::string& name, bool def = false)
-            : ParamMeta<T>(name, def ? T(1) : T(0), T(0), T(1)) {}
+            : ParamMeta<T>(name, T(0), T(1), def ? T(1) : T(0)) {}
 
         bool operator()() const { return this->current > T(0.5); }    
 
