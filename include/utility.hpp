@@ -213,6 +213,9 @@ namespace giml {
         // Pure virtual function for type-specific assignment behavior
         virtual void setValue(T val) = 0;
 
+        // Virtual function to identify parameter type
+        virtual const char* getParamType() const { return "continuous"; }
+
         // Operator overload to set current value with type-specific behavior
         ParamMeta& operator=(T val) { 
             setValue(val); 
@@ -266,10 +269,12 @@ namespace giml {
     template <typename T>
     class ChoiceParam : public ParamMeta<T> {
     public:
+        std::vector<std::string> labels;
+
         ChoiceParam(const std::string& name, T min, T max, T def)
             : ParamMeta<T>(name, min, max, def) {}
 
-        int operator()() const { return int(this->current); }    
+        int operator()() const { return int(this->current); }
 
         void setValue(T val) override {
             // Round to nearest integer for discrete values
@@ -277,6 +282,26 @@ namespace giml {
             if (val > this->max) { val = this->max; }
             this->current = round(val);
         }
+
+        // Set labels for choices
+        void setLabels(const std::vector<std::string>& lbls) {
+            labels = lbls;
+        }
+
+        // Get label for a given index
+        const std::string& getLabel(int idx) const {
+            if (idx >= 0 && idx < labels.size()) return labels[idx];
+            static std::string empty = "";
+            return empty;
+        }
+
+        // Get number of choices
+        int getNumChoices() const {
+            return labels.size();
+        }
+
+        // Override to identify this as a choice parameter
+        const char* getParamType() const override { return "choice"; }
 
         // Bring base class assignment operator into scope
         using ParamMeta<T>::operator=;
@@ -297,6 +322,9 @@ namespace giml {
             // Convert to boolean logic: anything > 0.5 is true
             this->current = (val > T(0.5)) ? T(1) : T(0);
         }
+
+        // Override to identify this as a boolean parameter
+        const char* getParamType() const override { return "boolean"; }
 
         // Assignment from boolean values
         BoolParam& operator=(bool val) {
