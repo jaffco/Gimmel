@@ -13,35 +13,40 @@ namespace giml {
     class Tremolo : public Effect<T> {
     private:
         int sampleRate;
-        T speed = 1000.0, depth = 1.0;
+        Param<T> speedMillis { "speedMillis", 50.0, 5000.0, 1000.0 };
+        Param<T> depth { "depth", 0.0, 1.0, 1.0 };
         giml::SinOsc<T> osc;
 
     public:
         // Constructor
         Tremolo() = delete;
         Tremolo (int samprate) : sampleRate(samprate), osc(samprate) {
-            this->osc.setFrequency(1000.0 / this->speed);
+            this->name = "Tremolo";
+            this->registerParameters(speedMillis, depth);
+            this->updateParams();
         }
 
         // Destructor
         ~Tremolo() {}
 
         // Copy constructor
-        Tremolo(const Tremolo<T>& t) {
-            this->enabled = t.enabled;
+        Tremolo(const Tremolo<T>& t) : Effect<T>(t) {
             this->sampleRate = t.sampleRate;
-            this->speed = t.speed;
+            this->speedMillis = t.speedMillis;
             this->depth = t.depth;
             this->osc = t.osc;
+            this->registerParameters(speedMillis, depth);
         }
 
         // Copy assignment operator 
         Tremolo<T>& operator=(const Tremolo<T>& t) {
-            this->enabled = t.enabled;
-            this->sampleRate = t.sampleRate;
-            this->speed = t.speed;
-            this->depth = t.depth;
-            this->osc = t.osc;
+            if (this != &t) {
+                Effect<T>::operator=(t);
+                this->sampleRate = t.sampleRate;
+                this->speedMillis = t.speedMillis;
+                this->depth = t.depth;
+                this->osc = t.osc;
+            }
             return *this;
         }
 
@@ -50,10 +55,10 @@ namespace giml {
          * @param in current sample
          * @return `in` enveloped by `osc`
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
             if (!this->enabled) { return in; }
             T gain = this->osc.processSample() * 2 - 1; // waveshape SinOsc output to make it unipolar
-            gain *= this->depth; // scale by depth
+            gain *= this->depth(); // scale by depth
             return in * (1 - gain); // return in * waveshaped SinOsc 
         }
 
@@ -65,14 +70,18 @@ namespace giml {
             this->setDepth(depth);
         }
 
+        void updateParams() override {
+            this->setParams(this->speedMillis(), this->depth());
+        }
+
         /**
          * @brief sets the rate of `osc`
          * @param millisPerCycle desired modulation frequency in milliseconds
          */
         void setSpeed(T millisPerCycle) { // set speed of LFO
             if (millisPerCycle < 0.05) { millisPerCycle = 0.05; } // osc frequency ceiling at 20kHz to avoid aliasing
-            this->speed = millisPerCycle;
-            this->osc.setFrequency(1000.0 / this->speed); // convert to Hz (milliseconds to seconds)
+            this->speedMillis = millisPerCycle;
+            this->osc.setFrequency(1000.0 / this->speedMillis()); // convert to Hz (milliseconds to seconds)
         }
 
         /**
@@ -80,7 +89,7 @@ namespace giml {
          * @param d modulation depth (clamped to [0,1])
          */
         void setDepth(T d) { // set depth
-            this->depth = giml::clip<T>(d, 0, 1);
+            this->depth = d;
         }
     };
 }

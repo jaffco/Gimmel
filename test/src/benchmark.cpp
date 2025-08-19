@@ -217,13 +217,6 @@ void benchmarkReverb() {
     benchmarkEffect("Reverb", reverb, TEST_INPUT);
 }
 
-void benchmarkSaturation() {
-    std::cout << "\n=== SATURATION BENCHMARK ===" << std::endl;
-    auto saturation = std::make_unique<giml::Saturation<float>>(SAMPLE_RATE);
-    
-    benchmarkEffect("Saturation", saturation, TEST_INPUT);
-}
-
 void benchmarkTremolo() {
     std::cout << "\n=== TREMOLO BENCHMARK ===" << std::endl;
     auto tremolo = std::make_unique<giml::Tremolo<float>>(SAMPLE_RATE);
@@ -308,7 +301,6 @@ int main() {
     benchmarkFlanger();
     benchmarkPhaser();
     benchmarkReverb();
-    benchmarkSaturation();
     benchmarkTremolo();
     
     // Run full audio processing test

@@ -9,6 +9,8 @@
 #include <cstring> 
 #include <stdexcept>
 #include <complex>
+#include <string>
+#include <vector>
 
 namespace giml {
     /**
@@ -173,6 +175,168 @@ namespace giml {
     }
 
     /**
+     * @brief Base class for parameters with common functionality
+     */
+    template <typename T>
+    class ParamMeta {
+    protected:
+        T min, max, def, current;
+        std::string name;
+
+    public:
+        ParamMeta() = delete;
+        
+        ParamMeta(const std::string& name, T min = 0.0, T max = 1.0, T def = 0.5) 
+            : name(name), def(def), min(min), max(max), current(def) {}
+
+        // Copy constructor
+        ParamMeta(const ParamMeta& p) 
+            : name(p.name), def(p.def), min(p.min), max(p.max), current(p.current) {}
+        
+        // Copy assignment operator
+        ParamMeta& operator=(const ParamMeta& p) {
+            if (this != &p) {
+                this->name = p.name;
+                this->def = p.def;
+                this->min = p.min;
+                this->max = p.max;
+                this->current = p.current;
+            }
+            return *this;
+        }
+
+        virtual ~ParamMeta() = default;
+
+        // Operator overload to get current value
+        T operator()() const { return this->current; }
+
+        // Pure virtual function for type-specific assignment behavior
+        virtual void setValue(T val) = 0;
+
+        // Virtual function to identify parameter type
+        virtual const char* getParamType() const { return "continuous"; }
+
+        // Operator overload to set current value with type-specific behavior
+        ParamMeta& operator=(T val) { 
+            setValue(val); 
+            return *this;
+        }
+
+        // Getters
+        const std::string& getName() const { return name; }
+        T getDefault() const { return def; }
+        T getMin() const { return min; }
+        T getMax() const { return max; }
+        T getCurrent() const { return current; }
+
+        // Setters for range
+        void setRange(T newMin, T newMax) {
+            min = newMin;
+            max = newMax;
+            setValue(current); // Re-validate current value
+        }
+    };
+
+    /**
+     * @brief Continuous parameter with standard clamping
+     */
+    template <typename T>
+    class ContinuousParam : public ParamMeta<T> {
+    public:
+        ContinuousParam(const std::string& name, T min, T max, T def)
+            : ParamMeta<T>(name, min, max, def) {}
+
+        void setValue(T val) override {
+            // Standard clamping for continuous values
+            if (val < this->min) { val = this->min; }
+            if (val > this->max) { val = this->max; }
+            this->current = val;
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
+     * @brief Type alias for backward compatibility
+     */
+    template <typename T>
+    using Param = ContinuousParam<T>;
+
+    /**
+     * @brief Choice parameter with rounding to nearest integer
+     */
+    template <typename T>
+    class ChoiceParam : public ParamMeta<T> {
+    public:
+        std::vector<std::string> labels;
+
+        ChoiceParam(const std::string& name, T min, T max, T def)
+            : ParamMeta<T>(name, min, max, def) {}
+
+        int operator()() const { return int(this->current); }
+
+        void setValue(T val) override {
+            // Round to nearest integer for discrete values
+            if (val < this->min) { val = this->min; }
+            if (val > this->max) { val = this->max; }
+            this->current = round(val);
+        }
+
+        // Set labels for choices
+        void setLabels(const std::vector<std::string>& lbls) {
+            labels = lbls;
+        }
+
+        // Get label for a given index
+        const std::string& getLabel(int idx) const {
+            if (idx >= 0 && idx < labels.size()) return labels[idx];
+            static std::string empty = "";
+            return empty;
+        }
+
+        // Get number of choices
+        int getNumChoices() const {
+            return labels.size();
+        }
+
+        // Override to identify this as a choice parameter
+        const char* getParamType() const override { return "choice"; }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
+     * @brief Boolean parameter that works with Effect<T> but stores boolean values
+     */
+    template <typename T>
+    class BoolParam : public ParamMeta<T> {
+    public:
+        BoolParam(const std::string& name, bool def = false)
+            : ParamMeta<T>(name, T(0), T(1), def ? T(1) : T(0)) {}
+
+        bool operator()() const { return this->current > T(0.5); }    
+
+        void setValue(T val) override {
+            // Convert to boolean logic: anything > 0.5 is true
+            this->current = (val > T(0.5)) ? T(1) : T(0);
+        }
+
+        // Override to identify this as a boolean parameter
+        const char* getParamType() const override { return "boolean"; }
+
+        // Assignment from boolean values
+        BoolParam& operator=(bool val) {
+            setValue(val ? T(1) : T(0));
+            return *this;
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
      * @brief produces filter coefficient for a one-pole lowpass 
      * from a desired response time in milliseconds. 
      * Eq. 7 from Reiss et al. 2011 
@@ -188,9 +352,31 @@ namespace giml {
      */
     template <typename T>
     class Effect {
+    protected:
+        bool enabled = false;
+        std::string name = "";
+        std::vector<ParamMeta<T>*> params;    
+
     public:
         Effect() {}
         virtual ~Effect() {}
+
+        // Copy constructor
+        Effect(const Effect& other) {
+            this->enabled = other.enabled;
+            this->name = other.name;
+            this->params = other.params;
+        }
+
+        // Copy assignment operator
+        Effect& operator=(const Effect& other) {
+            if (this != &other) {
+                this->enabled = other.enabled;
+                this->name = other.name;
+                this->params = other.params;
+            }
+            return *this;
+        }
 
         // `enable()`/`disable()` soon to be deprecated
         virtual void enable() { this->enabled = true; } 
@@ -198,15 +384,54 @@ namespace giml {
         virtual void disable() { this->enabled = false; }
         
         /**
-         * @brief `toggle()` function with overloads. 
+         * @brief inverts the state of the effect. 
          */
         virtual void toggle() { this->enabled = !(this->enabled); }
+
+        /**
+         * @brief sets the desired state of the effect
+         * @param desiredState true to enable, false to disable
+         */
         virtual void toggle(bool desiredState) { this->enabled = desiredState; }
 
         virtual inline T processSample(const T& in) { return in; }
 
-    protected:
-        bool enabled = false;
+        inline const std::string& getName() const { return this->name; }
+
+        inline void setParam(const std::string& name, T value) {
+            for (auto* p : this->params) {
+                if (p->getName() == name) {  // Use getter method
+                    *p = value;              // Assign using operator= of ParamMeta
+                    return; // return once param is found 
+                }
+            }
+            printf("Param %s not found!\n", name.c_str());
+        }
+
+        /**
+         * @brief Register a single parameter
+         * @param param Reference to the parameter to register
+         */
+        inline void registerParameter(ParamMeta<T>& param) {
+            this->params.push_back(&param);
+        }
+
+        /**
+         * @brief Allows registering any number of parameters on a single line
+         * @param paramsArgs Variadic list of parameter references
+         * @return Reference to this Effect for method chaining
+         */
+        template <typename... Args> 
+        Effect& registerParameters(Args&... paramsArgs) {
+            std::vector<ParamMeta<T>*> paramPtrs{&paramsArgs...};
+            for (auto* param : paramPtrs) {
+                this->params.push_back(param);
+            }
+            return *this;
+        }
+
+        inline virtual void updateParams() {}
+        inline const std::vector<ParamMeta<T>*>& getParams() const { return this->params; }
     };
 
     /**

@@ -18,7 +18,9 @@ namespace giml {
     private:
         int sampleRate;
         size_t numStages = 0;
-        T rate = 0.0, feedback = 0.0, last = 0.0;
+        Param<T> rate { "rate", 0.01, 10.0, 0.5 };
+        Param<T> feedback { "feedback", -1.0, 1.0, 0.85 };
+        T last = 0.0;
         giml::TriOsc<T> osc;
         giml::DynamicArray<giml::SVF<T>> filterbank;
         giml::DynamicArray<T> centerFreqs;
@@ -27,21 +29,24 @@ namespace giml {
         // Constructor
         Phaser() = delete;
         Phaser(int samprate, size_t stages = 6) : sampleRate(samprate), numStages(stages), osc(samprate) {
+            this->name = "Phaser";
+            this->registerParameters(rate, feedback);
+            
             for (size_t stage = 0; stage < numStages; stage++) {
                 filterbank.pushBack(giml::SVF<T>(samprate));
 
                 // TODO: logarithmic frequency spacing
                 centerFreqs.pushBack( (this->sampleRate * 0.25) / (2.0 * (numStages - stage)) ); 
             }
-            this->setParams();
+
+            this->updateParams();
         }
 
         // Destructor
         ~Phaser() {}
 
         // Copy constructor
-        Phaser(const Phaser<T>& p) {
-            this->enabled = p.enabled;
+        Phaser(const Phaser<T>& p) : Effect<T>(p) {
             this->sampleRate = p.sampleRate;
             this->numStages = p.numStages;
             this->rate = p.rate;
@@ -50,19 +55,22 @@ namespace giml {
             this->osc = p.osc;
             this->filterbank = p.filterbank;
             this->centerFreqs = p.centerFreqs;
+            this->registerParameters(rate, feedback);
         }
 
         // Copy assignment operator 
         Phaser<T>& operator=(const Phaser<T>& p) {
-            this->enabled = p.enabled;
-            this->sampleRate = p.sampleRate;
-            this->numStages = p.numStages;
-            this->rate = p.rate;
-            this->feedback = p.feedback;
-            this->last = p.last;
-            this->osc = p.osc;
-            this->filterbank = p.filterbank;
-            this->centerFreqs = p.centerFreqs;
+            if (this != &p) {
+                Effect<T>::operator=(p);
+                this->sampleRate = p.sampleRate;
+                this->numStages = p.numStages;
+                this->rate = p.rate;
+                this->feedback = p.feedback;
+                this->last = p.last;
+                this->osc = p.osc;
+                this->filterbank = p.filterbank;
+                this->centerFreqs = p.centerFreqs;
+            }
             return *this;
         }
 
@@ -72,9 +80,9 @@ namespace giml {
          * @return mix of current input and last output with time-varying comb filter
          * @todo optimize SVF.setParams() call
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
 
-            last = giml::linMix<T>(in, last, this->feedback);
+            last = giml::linMix<T>(in, last, this->feedback());
             if (!this->enabled) { return in; }
             T mod = osc.processSample();
 
@@ -99,11 +107,16 @@ namespace giml {
             this->setFeedback(feedback);
         }
 
+        void updateParams() override {
+            this->setParams(this->rate(), this->feedback());
+        }
+
         /**
          * @brief Set modulation rate- the frequency of the LFO.  
          * @param freq frequency in Hz 
          */
         void setRate(const T& freq) {
+            this->rate = freq;
             this->osc.setFrequency(freq); // set frequency in Hz
         }
 
@@ -112,7 +125,7 @@ namespace giml {
          * @param fbGain feedback gain.
          */
         void setFeedback(const T& fbGain) { 
-            this->feedback = giml::clip<T>(fbGain, -1, 1); 
+            this->feedback = fbGain; 
         }
     };
 }
