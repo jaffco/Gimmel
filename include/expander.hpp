@@ -138,17 +138,18 @@ namespace giml {
          * attack, and release
          */
         void setParams(T thresh = 0.0, T ratio = 2.0, T knee = 1.0, 
-                       T attack = 3.5, T release = 100.0) {
+                       T attack = 3.5, T release = 100.0, bool sideChainEnable = false) {
             this->setThresh(thresh);
             this->setRatio(ratio);
             this->setKnee(knee);
             this->setAttack(attack);
             this->setRelease(release);
+            this->toggleSideChain(sideChainEnable);
         }
 
         void updateParams() override {
             this->setParams(this->thresh_dB(), this->ratio(), this->knee_dB(),
-                            this->attackMillis(), this->releaseMillis());
+                            this->attackMillis(), this->releaseMillis(), this->sideChainEnabled());
         }
 
         /**
