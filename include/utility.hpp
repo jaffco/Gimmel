@@ -714,6 +714,7 @@ namespace giml {
 
         size_t size() const { return this->length; }
         size_t getCapacity() const { return this->totalCapacity; }
+        void clear() { this->length = 0; }
 
         void pushBack(const T& val) {
             if (this->length == this->totalCapacity) {
@@ -811,10 +812,13 @@ namespace giml {
     class EffectsLine : public DynamicArray<Effect<T>*> {
     public:
         EffectsLine(size_t initialCapacity = 5): DynamicArray<Effect<T>*>(initialCapacity) {}
-        //Copy constructor
+        
+        // Copy constructor
         EffectsLine(const EffectsLine& e) {}
-        //Copy assignment operator
+        
+        // Copy assignment operator
         EffectsLine& operator=(const EffectsLine& e) {}
+        
         //Destructor
         ~EffectsLine() {} //Base class destructor automatically called
 
@@ -830,6 +834,83 @@ namespace giml {
                 returnVal = e->processSample(returnVal);
             }
           return returnVal;
+        }
+        
+        /**
+         * @brief Set the order of effects in the chain from a vector of pointers
+         * @param newOrder vector of Effect<T>* in desired order
+         */
+        void setOrder(const std::vector<Effect<T>*>& newOrder) {
+            this->clear();
+            for (auto* effect : newOrder) {
+                this->pushBack(effect);
+            }
+        }
+        
+        /**
+         * @brief Move an effect from one position to another in the chain
+         * 
+         * @param fromIndex current position of the effect
+         * @param toIndex new position for the effect
+         * @return true if the move was successful, false otherwise
+         */
+        bool moveEffect(size_t fromIndex, size_t toIndex) {
+            if (fromIndex >= this->length || toIndex >= this->length || fromIndex == toIndex) {
+                return false;
+            }
+            
+            // Get the effect to move
+            Effect<T>* effectToMove = this->pBackingArr[fromIndex];
+            
+            // Remove from current position
+            if (fromIndex < toIndex) {
+                // Moving forward: shift elements left
+                for (size_t i = fromIndex; i < toIndex; ++i) {
+                    this->pBackingArr[i] = this->pBackingArr[i + 1];
+                }
+            } else {
+                // Moving backward: shift elements right
+                for (size_t i = fromIndex; i > toIndex; --i) {
+                    this->pBackingArr[i] = this->pBackingArr[i - 1];
+                }
+            }
+            
+            // Place the effect at the new position
+            this->pBackingArr[toIndex] = effectToMove;
+            
+            return true;
+        }
+        
+        /**
+         * @brief Swap two effects in the chain
+         * 
+         * @param index1 first effect index
+         * @param index2 second effect index
+         * @return true if the swap was successful, false otherwise
+         */
+        bool swapEffects(size_t index1, size_t index2) {
+            if (index1 >= this->length || index2 >= this->length || index1 == index2) {
+                return false;
+            }
+            
+            Effect<T>* temp = this->pBackingArr[index1];
+            this->pBackingArr[index1] = this->pBackingArr[index2];
+            this->pBackingArr[index2] = temp;
+            
+            return true;
+        }
+        
+        /**
+         * @brief Get the effect at a specific index
+         * 
+         * @param index position in the chain
+         * @return Effect<T>* pointer to the effect, or nullptr if index is invalid
+         */
+        Effect<T>* getEffect(size_t index) const {
+            if (index >= this->length) {
+                return nullptr;
+            }
+            return this->pBackingArr[index];
         }
     };
 
