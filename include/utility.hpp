@@ -318,6 +318,12 @@ namespace giml {
 
         bool operator()() const { return this->current > T(0.5); }    
 
+        /**
+         * @brief boolean conversion operator so the param can be used in
+         * boolean contexts directly: `if (myBoolParam) { ... }`
+         */
+        operator bool() const { return this->operator()(); }
+
         void setValue(T val) override {
             // Convert to boolean logic: anything > 0.5 is true
             this->current = (val > T(0.5)) ? T(1) : T(0);
@@ -353,17 +359,20 @@ namespace giml {
     template <typename T>
     class Effect {
     protected:
-        bool enabled = false;
+        BoolParam<T> enabled {"enabled", false};
         std::string name = "";
         std::vector<ParamMeta<T>*> params;    
 
     public:
-        Effect() {}
+
+        Effect() {
+            this->registerParameter(enabled);
+        }
+
         virtual ~Effect() {}
 
         // Copy constructor
         Effect(const Effect& other) {
-            this->enabled = other.enabled;
             this->name = other.name;
             this->params = other.params;
         }
@@ -371,7 +380,6 @@ namespace giml {
         // Copy assignment operator
         Effect& operator=(const Effect& other) {
             if (this != &other) {
-                this->enabled = other.enabled;
                 this->name = other.name;
                 this->params = other.params;
             }
