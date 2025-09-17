@@ -4,7 +4,7 @@
 #include "utility.hpp"
 namespace giml {
     template <typename T>
-    class Biquad : public Effect<T> {
+    class Biquad {
     public:
         enum class BiquadUseCase {
             PassThroughDefault, //Default type until parameters are set
