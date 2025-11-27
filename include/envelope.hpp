@@ -15,7 +15,8 @@ namespace giml {
         T aAttack, aRelease;
         Param<T> qFactor { "qFactor", 1.0, 20.0, 10.0 }; // Q factor for the filter
         Param<T> attackMillis { "attackMillis", 0.0, 100.0, 7.76 };
-        Param<T> releaseMillis { "releaseMillis", 0.0, 2000.0, 1105.0 };
+        Param<T> releaseMillis { "releaseMillis", 0.0, 2000.0, 1105.0 };\
+        ChoiceParam<T> filterType { "filterType", { "LOPASS", "BANDPASS", "HIGHPASS" }, 0 };
         Vactrol<T> mVactrol;
         SVF<T> mFilter;
 
@@ -27,7 +28,7 @@ namespace giml {
                                          mVactrol(sampleRate), 
                                          mFilter(sampleRate) {
             this->name = "EnvelopeFilter";
-            this->registerParameters(qFactor, attackMillis, releaseMillis);               
+            this->registerParameters(qFactor, attackMillis, releaseMillis, filterType);               
             this->updateParams();
         }
         
@@ -42,7 +43,7 @@ namespace giml {
             this->aRelease = e.aRelease;
             this->mVactrol = e.mVactrol;
             this->mFilter = e.mFilter;
-            this->registerParameters(qFactor, attackMillis, releaseMillis);
+            this->registerParameters(qFactor, attackMillis, releaseMillis, filterType);
         }
 
         // Copy assignment operator 
@@ -51,6 +52,9 @@ namespace giml {
                 Effect<T>::operator=(e);
                 this->sampleRate = e.sampleRate;
                 this->qFactor = e.qFactor;
+                this->attackMillis = e.attackMillis;
+                this->releaseMillis = e.releaseMillis;
+                this->filterType = e.filterType;
                 this->aAttack = e.aAttack;
                 this->aRelease = e.aRelease;
                 this->mVactrol = e.mVactrol;
@@ -74,18 +78,31 @@ namespace giml {
             // apply filter
             mFilter.setParams(cutoff, qFactor(), sampleRate);
             mFilter(in);
-            return mFilter.loPass();
+            switch (filterType()) {
+                case 0: // lowpass
+                    return mFilter.loPass();
+                case 1: // bandpass
+                    return mFilter.bandPass();
+                case 2: // highpass
+                    return mFilter.hiPass();
+                default:
+                    return mFilter.loPass();
+            }
         }        
         
         // Set parameters for the envelope filter
-        void setParams(T qFactor = 10.0, T attackMillis = 7.76, T releaseMillis = 1105.0) {
+        void setParams(T qFactor = 10.0, 
+                       T attackMillis = 7.76, 
+                       T releaseMillis = 1105.0,
+                       int filterType = 0) {
             this->setQ(qFactor);
             this->setAttack(attackMillis);
             this->setRelease(releaseMillis);
+            this->setFilterType(filterType);
         }
 
         void updateParams() override {
-            this->setParams(this->qFactor(), this->attackMillis(), this->releaseMillis());
+            this->setParams(qFactor(), attackMillis(), releaseMillis(), filterType());
         }
 
         /**
@@ -113,6 +130,14 @@ namespace giml {
         void setRelease(T releaseMillis) { // // 
             this->releaseMillis = releaseMillis;
             this->aRelease = timeConstant(releaseMillis, sampleRate);
+        }
+
+        /**
+         * @brief set filter type 
+         * @param type 0 = lowpass, 1 = bandpass, 2 = highpass
+         */
+        void setFilterType(int type) {
+            filterType = type;
         }
 
     };
