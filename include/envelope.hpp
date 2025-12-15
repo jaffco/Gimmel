@@ -16,7 +16,7 @@ namespace giml {
         Param<T> qFactor { "qFactor", 1.0, 20.0, 10.0 }; // Q factor for the filter
         Param<T> attackMillis { "attackMillis", 0.0, 100.0, 7.76 };
         Param<T> releaseMillis { "releaseMillis", 0.0, 2000.0, 1105.0 };\
-        ChoiceParam<T> filterType { "filterType", { "LOPASS", "BANDPASS", "HIGHPASS" }, 0 };
+        ChoiceParam<T> filterType { "filterType", 0.0, 2.0, 0.0 };
         Vactrol<T> mVactrol;
         SVF<T> mFilter;
 
@@ -28,6 +28,7 @@ namespace giml {
                                          mVactrol(sampleRate), 
                                          mFilter(sampleRate) {
             this->name = "EnvelopeFilter";
+            filterType.setLabels({"LOPASS", "BANDPASS", "HIGHPASS"});
             this->registerParameters(qFactor, attackMillis, releaseMillis, filterType);               
             this->updateParams();
         }
