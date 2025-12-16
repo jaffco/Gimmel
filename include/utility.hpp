@@ -328,6 +328,7 @@ namespace giml {
         T* pBackingArr = nullptr;
         size_t bufferSize = 0;
         size_t writeIndex = 0;
+        bool ownsBuffer = false;  // Tracks if we allocated the buffer ourselves
 
     public:
         /**
@@ -338,6 +339,25 @@ namespace giml {
             if (this->pBackingArr) { free(this->pBackingArr); } // free if occupied
             this->bufferSize = size;
             this->pBackingArr = (T*)calloc(this->bufferSize, sizeof(T)); // zero-fill values
+            this->ownsBuffer = true;
+        }
+
+        // Deallocate the buffer if we own it
+        void deallocate() {
+            if (this->pBackingArr && this->ownsBuffer) { free(this->pBackingArr); }
+            this->pBackingArr = nullptr;
+            this->bufferSize = 0;
+            this->writeIndex = 0;
+            this->ownsBuffer = false;
+        }
+
+        // New: Set to use a pre-allocated buffer (no malloc/free)
+        void setBuffer(T* preAllocatedBuffer, size_t size) {
+            deallocate();  // Clean up any existing buffer
+            this->pBackingArr = preAllocatedBuffer;
+            this->bufferSize = size;
+            this->writeIndex = 0;
+            this->ownsBuffer = false;  // We don't own it, so don't free it
         }
 
         //Constructor
@@ -349,6 +369,7 @@ namespace giml {
             // We need to deep copy over the entire array
             this->bufferSize = c.bufferSize;
             this->pBackingArr = (T*)calloc(bufferSize, sizeof(T));
+            this->ownsBuffer = true;
             for (size_t i = 0; i < this->bufferSize; i++) {
                 this->pBackingArr[i] = c.pBackingArr[i];
             }
@@ -357,9 +378,10 @@ namespace giml {
         // Copy assignment constructor
         CircularBuffer& operator=(const CircularBuffer& c) {
             //There is a previous object here so first we need to free the previous buffer
-            if (this->pBackingArr) { free(this->pBackingArr); }
+            deallocate();
             this->bufferSize = c.bufferSize;
             this->pBackingArr = (T*)calloc(bufferSize, sizeof(T));
+            this->ownsBuffer = true;
             for (size_t i = 0; i < this->bufferSize; i++) {
                 this->pBackingArr[i] = c.pBackingArr[i];
             }
@@ -368,7 +390,7 @@ namespace giml {
         }
 
         // Destructor that frees the memory
-        ~CircularBuffer() { if (this->pBackingArr) { free(pBackingArr); } }
+        ~CircularBuffer() { deallocate(); }
 
         /**
          * @brief Writes a new sample to the buffer
@@ -425,6 +447,21 @@ namespace giml {
          * @brief getter for `bufferSize`
          */
         size_t size() const { return this->bufferSize; }
+
+        /**
+         * @brief getter for `pBackingArr`
+         */
+        T* getBuffer() const { return this->pBackingArr; }
+
+        /**
+         * @brief getter for `writeIndex`
+         */
+        size_t getWriteIndex() const { return this->writeIndex; }
+
+        /**
+         * @brief setter for `writeIndex`
+         */
+        void setWriteIndex(size_t idx) { this->writeIndex = idx; }
     };
 
     /**
