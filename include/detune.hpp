@@ -17,41 +17,51 @@ namespace giml {
     class Detune : public Effect<T> {
     private:
         int sampleRate;
-        T pitchRatio = 1.0, windowSize = 1000.0, blend = 0.5; 
+        T windowSize;
+        Param<T> pitchRatio { "pitchRatio", 0.5, 2.0, 1.0 };
+        Param<T> windowSizeMillis { "windowSizeMillis", 10.0, 300.0, 22.0 };
+        Param<T> blend { "blend", 0.0, 1.0, 0.5 };
         giml::CircularBuffer<T> buffer;
         giml::Phasor<T> osc;
 
     public:
         // Constructor
         Detune() = delete;
-        Detune(int samprate, float maxWindowMillis = 300.0) : sampleRate(samprate), osc(samprate) {
-            this->osc.setFrequency(1000.0 * ((1.0 - this->pitchRatio) / this->windowSize));
-            this->buffer.allocate(giml::millisToSamples(maxWindowMillis, samprate));
+        Detune(int samprate) : sampleRate(samprate), osc(samprate) {
+            this->name = "Detune";
+            // Update max range for windowSizeMillis parameter
+            this->registerParameters(pitchRatio, windowSizeMillis, blend);
+            this->buffer.allocate(giml::millisToSamples(300, samprate));
+            this->updateParams();
         }
 
         // Destructor 
         ~Detune() {}
 
         // Copy constructor
-        Detune(const Detune<T>& d) {
-            this->enabled = d.enabled;
+        Detune(const Detune<T>& d) : Effect<T>(d) {
             this->sampleRate = d.sampleRate;
             this->pitchRatio = d.pitchRatio;
             this->windowSize = d.windowSize;
+            this->windowSizeMillis = d.windowSizeMillis;
             this->blend = d.blend;
             this->buffer = d.buffer;
             this->osc = d.osc;
+            this->registerParameters(pitchRatio, windowSizeMillis, blend);
         }
 
         // Copy assignment operator 
         Detune<T>& operator=(const Detune<T>& d) {
-            this->enabled = d.enabled;
-            this->sampleRate = d.sampleRate;
-            this->pitchRatio = d.pitchRatio;
-            this->windowSize = d.windowSize;
-            this->blend = d.blend;
-            this->buffer = d.buffer;
-            this->osc = d.osc;
+            if (this != &d) {
+                Effect<T>::operator=(d);
+                this->sampleRate = d.sampleRate;
+                this->pitchRatio = d.pitchRatio;
+                this->windowSize = d.windowSize;
+                this->windowSizeMillis = d.windowSizeMillis;
+                this->blend = d.blend;
+                this->buffer = d.buffer;
+                this->osc = d.osc;
+            }
             return *this;
         }
 
@@ -61,7 +71,7 @@ namespace giml {
          * @return past input value. Changes in temporal distance from current sample
          * create pitch-shifting via the doppler effect 
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
 
             // bypass behavior 
             this->buffer.writeSample(in); // write sample to delay buffer
@@ -81,7 +91,7 @@ namespace giml {
             T windowTwo = cos((phase2 - 0.5) * M_PI);// ^
             
             T out = output * windowOne + output2 * windowTwo; // windowed output
-            return giml::linMix(in, out, this->blend); 
+            return giml::powMix<T>(in, out, this->blend()); 
         }
 
         /**
@@ -93,13 +103,17 @@ namespace giml {
             this->setBlend(blend);
         }
 
+        void updateParams() override {
+            this->setParams(this->pitchRatio(), this->windowSizeMillis(), this->blend());
+        }
+
         /**
          * @brief Set the pitch change ratio
          * @param ratio of desired pitch to input 
          */
         void setPitchRatio(T ratio) {
             this->pitchRatio = ratio;
-            this->osc.setFrequency(1000.0 * ((1.0 - ratio) / this->windowSize));
+            this->osc.setFrequency(1000.0 * ((1.0 - ratio) / this->windowSizeMillis()));
         }
 
         /**
@@ -120,7 +134,7 @@ namespace giml {
          * @param b clamped to [0,1], 1.0 = 100% wet, 0.0 = 100% dry
          */
         void setBlend(T b) { 
-            this->blend = giml::clip<T>(b, 0.0, 1.0); 
+            this->blend = b;
         }
     };
 }

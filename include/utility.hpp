@@ -9,6 +9,8 @@
 #include <cstring> 
 #include <stdexcept>
 #include <complex>
+#include <string>
+#include <vector>
 
 namespace giml {
     /**
@@ -173,6 +175,174 @@ namespace giml {
     }
 
     /**
+     * @brief Base class for parameters with common functionality
+     */
+    template <typename T>
+    class ParamMeta {
+    protected:
+        T min, max, def, current;
+        std::string name;
+
+    public:
+        ParamMeta() = delete;
+        
+        ParamMeta(const std::string& name, T min = 0.0, T max = 1.0, T def = 0.5) 
+            : name(name), def(def), min(min), max(max), current(def) {}
+
+        // Copy constructor
+        ParamMeta(const ParamMeta& p) 
+            : name(p.name), def(p.def), min(p.min), max(p.max), current(p.current) {}
+        
+        // Copy assignment operator
+        ParamMeta& operator=(const ParamMeta& p) {
+            if (this != &p) {
+                this->name = p.name;
+                this->def = p.def;
+                this->min = p.min;
+                this->max = p.max;
+                this->current = p.current;
+            }
+            return *this;
+        }
+
+        virtual ~ParamMeta() = default;
+
+        // Operator overload to get current value
+        T operator()() const { return this->current; }
+
+        // Pure virtual function for type-specific assignment behavior
+        virtual void setValue(T val) = 0;
+
+        // Virtual function to identify parameter type
+        virtual const char* getParamType() const { return "continuous"; }
+
+        // Operator overload to set current value with type-specific behavior
+        ParamMeta& operator=(T val) { 
+            setValue(val); 
+            return *this;
+        }
+
+        // Getters
+        const std::string& getName() const { return name; }
+        T getDefault() const { return def; }
+        T getMin() const { return min; }
+        T getMax() const { return max; }
+        T getCurrent() const { return current; }
+
+        // Setters for range
+        void setRange(T newMin, T newMax) {
+            min = newMin;
+            max = newMax;
+            setValue(current); // Re-validate current value
+        }
+    };
+
+    /**
+     * @brief Continuous parameter with standard clamping
+     */
+    template <typename T>
+    class ContinuousParam : public ParamMeta<T> {
+    public:
+        ContinuousParam(const std::string& name, T min, T max, T def)
+            : ParamMeta<T>(name, min, max, def) {}
+
+        void setValue(T val) override {
+            // Standard clamping for continuous values
+            if (val < this->min) { val = this->min; }
+            if (val > this->max) { val = this->max; }
+            this->current = val;
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
+     * @brief Type alias for backward compatibility
+     */
+    template <typename T>
+    using Param = ContinuousParam<T>;
+
+    /**
+     * @brief Choice parameter with rounding to nearest integer
+     */
+    template <typename T>
+    class ChoiceParam : public ParamMeta<T> {
+    public:
+        std::vector<std::string> labels;
+
+        ChoiceParam(const std::string& name, T min, T max, T def)
+            : ParamMeta<T>(name, min, max, def) {}
+
+        int operator()() const { return int(this->current); }
+
+        void setValue(T val) override {
+            // Round to nearest integer for discrete values
+            if (val < this->min) { val = this->min; }
+            if (val > this->max) { val = this->max; }
+            this->current = round(val);
+        }
+
+        // Set labels for choices
+        void setLabels(const std::vector<std::string>& lbls) {
+            labels = lbls;
+        }
+
+        // Get label for a given index
+        const std::string& getLabel(int idx) const {
+            if (idx >= 0 && idx < labels.size()) return labels[idx];
+            static std::string empty = "";
+            return empty;
+        }
+
+        // Get number of choices
+        int getNumChoices() const {
+            return labels.size();
+        }
+
+        // Override to identify this as a choice parameter
+        const char* getParamType() const override { return "choice"; }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
+     * @brief Boolean parameter that works with Effect<T> but stores boolean values
+     */
+    template <typename T>
+    class BoolParam : public ParamMeta<T> {
+    public:
+        BoolParam(const std::string& name, bool def = false)
+            : ParamMeta<T>(name, T(0), T(1), def ? T(1) : T(0)) {}
+
+        bool operator()() const { return this->current > T(0.5); }    
+
+        /**
+         * @brief boolean conversion operator so the param can be used in
+         * boolean contexts directly: `if (myBoolParam) { ... }`
+         */
+        operator bool() const { return this->operator()(); }
+
+        void setValue(T val) override {
+            // Convert to boolean logic: anything > 0.5 is true
+            this->current = (val > T(0.5)) ? T(1) : T(0);
+        }
+
+        // Override to identify this as a boolean parameter
+        const char* getParamType() const override { return "boolean"; }
+
+        // Assignment from boolean values
+        BoolParam& operator=(bool val) {
+            setValue(val ? T(1) : T(0));
+            return *this;
+        }
+
+        // Bring base class assignment operator into scope
+        using ParamMeta<T>::operator=;
+    };
+
+    /**
      * @brief produces filter coefficient for a one-pole lowpass 
      * from a desired response time in milliseconds. 
      * Eq. 7 from Reiss et al. 2011 
@@ -188,9 +358,33 @@ namespace giml {
      */
     template <typename T>
     class Effect {
+    protected:
+        BoolParam<T> enabled {"enabled", false};
+        std::string name = "";
+        std::vector<ParamMeta<T>*> params;    
+
     public:
-        Effect() {}
+
+        Effect() {
+            this->registerParameter(enabled);
+        }
+
         virtual ~Effect() {}
+
+        // Copy constructor
+        Effect(const Effect& other) {
+            this->name = other.name;
+            this->params = other.params;
+        }
+
+        // Copy assignment operator
+        Effect& operator=(const Effect& other) {
+            if (this != &other) {
+                this->name = other.name;
+                this->params = other.params;
+            }
+            return *this;
+        }
 
         // `enable()`/`disable()` soon to be deprecated
         virtual void enable() { this->enabled = true; } 
@@ -198,15 +392,54 @@ namespace giml {
         virtual void disable() { this->enabled = false; }
         
         /**
-         * @brief `toggle()` function with overloads. 
+         * @brief inverts the state of the effect. 
          */
         virtual void toggle() { this->enabled = !(this->enabled); }
+
+        /**
+         * @brief sets the desired state of the effect
+         * @param desiredState true to enable, false to disable
+         */
         virtual void toggle(bool desiredState) { this->enabled = desiredState; }
 
         virtual inline T processSample(const T& in) { return in; }
 
-    protected:
-        bool enabled = false;
+        inline const std::string& getName() const { return this->name; }
+
+        inline void setParam(const std::string& name, T value) {
+            for (auto* p : this->params) {
+                if (p->getName() == name) {  // Use getter method
+                    *p = value;              // Assign using operator= of ParamMeta
+                    return; // return once param is found 
+                }
+            }
+            printf("Param %s not found!\n", name.c_str());
+        }
+
+        /**
+         * @brief Register a single parameter
+         * @param param Reference to the parameter to register
+         */
+        inline void registerParameter(ParamMeta<T>& param) {
+            this->params.push_back(&param);
+        }
+
+        /**
+         * @brief Allows registering any number of parameters on a single line
+         * @param paramsArgs Variadic list of parameter references
+         * @return Reference to this Effect for method chaining
+         */
+        template <typename... Args> 
+        Effect& registerParameters(Args&... paramsArgs) {
+            std::vector<ParamMeta<T>*> paramPtrs{&paramsArgs...};
+            for (auto* param : paramPtrs) {
+                this->params.push_back(param);
+            }
+            return *this;
+        }
+
+        inline virtual void updateParams() {}
+        inline const std::vector<ParamMeta<T>*>& getParams() const { return this->params; }
     };
 
     /**
@@ -489,6 +722,7 @@ namespace giml {
 
         size_t size() const { return this->length; }
         size_t getCapacity() const { return this->totalCapacity; }
+        void clear() { this->length = 0; }
 
         void pushBack(const T& val) {
             if (this->length == this->totalCapacity) {
@@ -586,10 +820,13 @@ namespace giml {
     class EffectsLine : public DynamicArray<Effect<T>*> {
     public:
         EffectsLine(size_t initialCapacity = 5): DynamicArray<Effect<T>*>(initialCapacity) {}
-        //Copy constructor
+        
+        // Copy constructor
         EffectsLine(const EffectsLine& e) {}
-        //Copy assignment operator
+        
+        // Copy assignment operator
         EffectsLine& operator=(const EffectsLine& e) {}
+        
         //Destructor
         ~EffectsLine() {} //Base class destructor automatically called
 
@@ -605,6 +842,83 @@ namespace giml {
                 returnVal = e->processSample(returnVal);
             }
           return returnVal;
+        }
+        
+        /**
+         * @brief Set the order of effects in the chain from a vector of pointers
+         * @param newOrder vector of Effect<T>* in desired order
+         */
+        void setOrder(const std::vector<Effect<T>*>& newOrder) {
+            this->clear();
+            for (auto* effect : newOrder) {
+                this->pushBack(effect);
+            }
+        }
+        
+        /**
+         * @brief Move an effect from one position to another in the chain
+         * 
+         * @param fromIndex current position of the effect
+         * @param toIndex new position for the effect
+         * @return true if the move was successful, false otherwise
+         */
+        bool moveEffect(size_t fromIndex, size_t toIndex) {
+            if (fromIndex >= this->length || toIndex >= this->length || fromIndex == toIndex) {
+                return false;
+            }
+            
+            // Get the effect to move
+            Effect<T>* effectToMove = this->pBackingArr[fromIndex];
+            
+            // Remove from current position
+            if (fromIndex < toIndex) {
+                // Moving forward: shift elements left
+                for (size_t i = fromIndex; i < toIndex; ++i) {
+                    this->pBackingArr[i] = this->pBackingArr[i + 1];
+                }
+            } else {
+                // Moving backward: shift elements right
+                for (size_t i = fromIndex; i > toIndex; --i) {
+                    this->pBackingArr[i] = this->pBackingArr[i - 1];
+                }
+            }
+            
+            // Place the effect at the new position
+            this->pBackingArr[toIndex] = effectToMove;
+            
+            return true;
+        }
+        
+        /**
+         * @brief Swap two effects in the chain
+         * 
+         * @param index1 first effect index
+         * @param index2 second effect index
+         * @return true if the swap was successful, false otherwise
+         */
+        bool swapEffects(size_t index1, size_t index2) {
+            if (index1 >= this->length || index2 >= this->length || index1 == index2) {
+                return false;
+            }
+            
+            Effect<T>* temp = this->pBackingArr[index1];
+            this->pBackingArr[index1] = this->pBackingArr[index2];
+            this->pBackingArr[index2] = temp;
+            
+            return true;
+        }
+        
+        /**
+         * @brief Get the effect at a specific index
+         * 
+         * @param index position in the chain
+         * @return Effect<T>* pointer to the effect, or nullptr if index is invalid
+         */
+        Effect<T>* getEffect(size_t index) const {
+            if (index >= this->length) {
+                return nullptr;
+            }
+            return this->pBackingArr[index];
         }
     };
 

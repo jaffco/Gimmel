@@ -13,7 +13,10 @@ namespace giml {
     class Delay : public Effect<T> {
     private:
         int sampleRate;
-        T feedback = 0.3, delayTime = 398.0, blend = 0.5, damping = 0.5;
+        Param<T> feedback { "feedback", 0.0, 1.0, 0.3 };
+        Param<T> delayTime { "delayTime", 0.0, 3000.0, 398.0 };
+        Param<T> blend { "blend", 0.0, 1.0, 0.24 };
+        Param<T> damping { "damping", 0.0, 1.0, 0.7 };
         giml::OnePole<T> loPass; // loPass filter for damping
         giml::OnePole<T> dcBlock; // See Generating Sound & Organizing Time I - Wakefield and Taylor 2022 Chapter 7 pg. 204
         giml::CircularBuffer<T> buffer; // circular buffer to store past  values
@@ -22,17 +25,24 @@ namespace giml {
         // Constructor
         Delay() = delete;
         Delay(int samprate, T maxDelayMillis = 3000) : sampleRate(samprate) {
+            this->name = "Delay";
+            // Update max range for delayTime parameter
+            this->delayTime.setRange(0.0, maxDelayMillis);
+            
+            this->registerParameters(feedback, delayTime, blend, damping);
+
             this->buffer.allocate(giml::millisToSamples(maxDelayMillis, samprate)); // max delayTime is 3 seconds
-            this->loPass.setG(this->damping); // set damping 
+            this->loPass.setG(this->damping()); // set damping 
             this->dcBlock.setCutoff(3.0, samprate);// set dcBlock at 3Hz
+
+            this->updateParams();
         }
 
         // Destructor
         ~Delay() {}
 
         // Copy constructor
-        Delay(const Delay<T>& d) {
-            this->enabled = d.enabled;
+        Delay(const Delay<T>& d) : Effect<T>(d) {
             this->sampleRate = d.sampleRate;
             this->feedback = d.feedback;
             this->delayTime = d.delayTime;
@@ -41,19 +51,22 @@ namespace giml {
             this->loPass = d.loPass;
             this->dcBlock = d.dcBlock;
             this->buffer = d.buffer;
+            this->registerParameters(delayTime, feedback, damping, blend);
         }
 
         // Copy assignment operator 
         Delay<T>& operator=(const Delay<T>& d) {
-            this->enabled = d.enabled;
-            this->sampleRate = d.sampleRate;
-            this->feedback = d.feedback;
-            this->delayTime = d.delayTime;
-            this->blend = d.blend;
-            this->damping = d.damping;
-            this->loPass = d.loPass;
-            this->dcBlock = d.dcBlock;
-            this->buffer = d.buffer;
+            if (this != &d) {
+                Effect<T>::operator=(d);
+                this->sampleRate = d.sampleRate;
+                this->feedback = d.feedback;
+                this->delayTime = d.delayTime;
+                this->blend = d.blend;
+                this->damping = d.damping;
+                this->loPass = d.loPass;
+                this->dcBlock = d.dcBlock;
+                this->buffer = d.buffer;
+            }
             return *this;
         }
         
@@ -62,14 +75,14 @@ namespace giml {
          * @param in input sample
          * @return `in * 1-blend + y_D * blend`
          */
-        inline T processSample(const T& in) {
+        inline T processSample(const T& in) override {
             // calling `millisToSamples` every sample is not performant 
-            T readIndex = millisToSamples(this->delayTime, this->sampleRate); // calculate read index
+            T readIndex = millisToSamples(this->delayTime(), this->sampleRate); // calculate read index
             T y_0 = loPass.lpf(this->buffer.readSample(readIndex)); // read from buffer and loPass
-            this->buffer.writeSample(this->dcBlock.hpf(in + giml::limit<T>(y_0 * this->feedback, 0.75))); // write sample to delay buffer
+            this->buffer.writeSample(this->dcBlock.hpf(in + giml::limit<T>(y_0 * this->feedback(), 0.75))); // write sample to delay buffer
 
           if (!(this->enabled)) { return in; } 
-          return giml::linMix<float>(in, y_0, this->blend); // return wet/dry mix
+          return giml::powMix<T>(in, y_0, this->blend()); // return wet/dry mix
         }
 
         /**
@@ -81,6 +94,10 @@ namespace giml {
             this->setFeedback(feedback);
             this->setDamping(damping);
             this->setBlend(blend);
+        }
+
+        void updateParams() override {
+            this->setParams(this->delayTime(), this->feedback(), this->damping(), this->blend());
         }
 
         /**
@@ -103,15 +120,16 @@ namespace giml {
          * @param a damping value. Clipped to `[0,1]`
          */
         void setDamping(T a) { 
-            this->damping = giml::clip<T>(a, 0, 1);;
-            this->loPass.setG(this->damping);
+            this->loPass.setG(this->damping());
         }
 
         /**
          * @brief Set blend (linear)
          * @param gWet percentage of wet to blend in. Clipped to `[0,1]`
          */
-        void setBlend(T gWet) { this->blend = giml::clip<T>(gWet, 0, 1); }
+        void setBlend(T gWet) { 
+            this->blend = gWet; 
+        }
 
         /**
          * @brief Set feedback gain based on a t60 time value  
@@ -119,7 +137,7 @@ namespace giml {
          */
         void setFeedback_t60(T timeMillis) {
             T normalizedDecay = millisToSamples(timeMillis, this->sampleRate) / 
-            millisToSamples(this->delayTime, this->sampleRate);
+            millisToSamples(this->delayTime(), this->sampleRate);
             this->feedback = giml::t60<T>(static_cast<int>(::round(normalizedDecay)));
         }
 
